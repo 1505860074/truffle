@@ -34,6 +34,17 @@ python -m truffle
 
 - [架构设计](docs/architecture.md)
 - [开发路线图](docs/roadmap.md)
+- [手动测试文档](docs/manual-test.md)
+
+## 离线自检
+
+不配置大模型也能验证修图引擎是否正常：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\selftest.py
+# 或用自己的照片
+.\.venv\Scripts\python.exe scripts\selftest.py "C:\path\your.jpg"
+```
 
 ## 当前状态
 
