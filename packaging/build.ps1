@@ -67,7 +67,17 @@ if (-not $iscc) {
 }
 
 Write-Host "[2/2] Inno Setup 制作安装包... (使用 $iscc)"
-& $iscc (Join-Path $PSScriptRoot "installer.iss")
+
+# 从 pyproject.toml 读取版本号，作为安装包版本（单一来源）
+$version = "0.0.1"
+$pyproject = Join-Path $root "pyproject.toml"
+if (Test-Path $pyproject) {
+    $match = Select-String -Path $pyproject -Pattern '^\s*version\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($match) { $version = $match.Matches[0].Groups[1].Value }
+}
+Write-Host "    版本号: $version"
+
+& $iscc "/DMyAppVersion=$version" (Join-Path $PSScriptRoot "installer.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup 编译失败" }
 
 $installer = Join-Path $root "dist\installer"

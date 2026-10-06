@@ -50,6 +50,31 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 
 安装包为**按用户安装**（`PrivilegesRequired=lowest`），不弹 UAC，默认装到 `%LOCALAPPDATA%\Programs\Truffle`，自动创建开始菜单与可选桌面快捷方式。
 
+## 升级覆盖机制
+
+新版本安装包在旧版本之上安装时，**保证干净覆盖**，不会残留旧文件：
+
+| 机制 | 配置 | 作用 |
+| --- | --- | --- |
+| 同一 AppId | `[Setup] AppId` 固定 | 识别为同一程序，装回原目录，不另装一份 |
+| 同名文件覆盖 | `[Files] ... ignoreversion` | 无论新旧，直接覆盖 |
+| 清空旧运行时 | `[InstallDelete]` 删 `{app}\_internal` 与主程序 | 清除上一版独有、这一版已不存在的文件 |
+| 关闭占用 | `CloseApplications=yes` | 升级前关闭正在运行的旧程序，避免文件被占用 |
+| 版本单一来源 | `build.ps1` 读 `pyproject.toml` 的 `version` | 发版只改一处版本号 |
+
+> 用户数据（大模型 API 配置）在 `%APPDATA%\Truffle\config.json`，**不在**安装目录，升级覆盖不会影响。
+>
+> 实测：伪造旧版残留文件后重装，`_internal` 内残留被清除；安装目录根下手动放的其它文件按 Inno 默认行为保留。
+
+## 应用图标
+
+图标由 `scripts/make_icon.py` 生成（线框极简 · 深棕 + 金 · 松露），产物在 `assets/`：
+
+- `truffle.ico`：多尺寸（16~256），用于 exe 内嵌图标、运行时窗口图标、安装包图标；
+- `truffle.svg` / `truffle_512.png`：矢量源与预览。
+
+重新生成：`.\.venv\Scripts\python.exe scripts\make_icon.py`。改颜色/形状改脚本里的配色常量与 `truffle_path()` 即可。
+
 ## 体积构成与优化（当前约 344MB）
 
 | 部分 | 体积 | 说明 |

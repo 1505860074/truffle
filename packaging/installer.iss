@@ -6,7 +6,10 @@
 ;       默认装到 %LOCALAPPDATA%\Programs\Truffle。
 
 #define MyAppName "Truffle"
-#define MyAppVersion "0.0.1"
+; 版本号可由命令行覆盖：ISCC /DMyAppVersion=0.0.2 installer.iss
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.1"
+#endif
 #define MyAppExeName "Truffle.exe"
 
 [Setup]
@@ -26,13 +29,21 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
-; SetupIconFile=..\assets\truffle.ico   ; 有图标后取消注释
+SetupIconFile=..\assets\truffle.ico
+; 升级覆盖时，尝试关闭正在运行的旧程序，装完不自动重启
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"
+
+[InstallDelete]
+; 安装前清掉上一版遗留的运行时目录与主程序，保证「完整覆盖」而非只盖同名文件
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\{#MyAppExeName}"
 
 [Files]
 Source: "..\dist\Truffle\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

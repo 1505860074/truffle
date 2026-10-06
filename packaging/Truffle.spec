@@ -26,6 +26,10 @@ for package in ("mediapipe", "cv2"):
     binaries += pkg_binaries
     hiddenimports += pkg_hidden
 
+# 应用图标：既用于 EXE，也随包提供给运行时窗口图标
+ICON = str(ROOT / "assets" / "truffle.ico")
+datas += [(ICON, "assets")]
+
 # ---------- 资源裁剪 ----------
 # 只用 face_mesh，用不到这些 solution 的模型文件
 MEDIAPIPE_DROP_MODULES = {
@@ -112,6 +116,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name="Truffle",
+    icon=ICON,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
