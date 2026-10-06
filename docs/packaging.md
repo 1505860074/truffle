@@ -24,16 +24,27 @@ flowchart LR
 
 图 1：发布流水线
 
-执行：
+执行（**打包唯一入口**，每次运行自动递增版本号）：
 
 ```powershell
+# 默认：在上次版本基础上 patch +1（如 0.0.1 -> 0.0.2）
 powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+
+# 递增次版本 / 主版本
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Bump minor
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Bump major
+
+# 强制指定版本（仍会写回并作为下次基准）
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Version 1.0.0
 ```
 
+版本规则：以 `pyproject.toml` 的 `version` 作为「上次打包版本」，每次打包自动 +1；打包前写回（含 `src/truffle/__init__.py`，使 exe 内嵌/显示新版本），**打包失败自动回滚**。因此不要手动改版本号，交给脚本管理。
+
 脚本会：
-1. 检查/安装 `pyinstaller`；
-2. 用 `packaging\Truffle.spec` 打出绿色版到 `dist\Truffle\`；
-3. 若检测到 Inno Setup，则用 `packaging\installer.iss` 生成安装包到 `dist\installer\`（未安装则跳过并提示）。
+1. 读取并递增版本号，写回 `pyproject.toml` 与 `src\truffle\__init__.py`；
+2. 检查/安装 `pyinstaller`；
+3. 用 `packaging\Truffle.spec` 打出绿色版到 `dist\Truffle\`；
+4. 若检测到 Inno Setup，则用 `packaging\installer.iss` 生成安装包 `dist\installer\Truffle-Setup-<版本>.exe`（未安装则跳过并提示）。
 
 ## 前置条件
 

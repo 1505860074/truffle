@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QSplitter,
 )
 
+from .. import __version__
 from ..agent.llm_client import LLMClient
 from ..agent.orchestrator import Orchestrator
 from ..config import AppSettings
@@ -28,7 +29,7 @@ from .worker import AgentWorker
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Truffle · AI 修图")
+        self.setWindowTitle(f"Truffle · AI 修图  v{__version__}")
         self.resize(1180, 760)
 
         self.settings = AppSettings.load()

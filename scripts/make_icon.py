@@ -50,19 +50,54 @@ def truffle_path(cx: float, cy: float, r: float, n: int = 300) -> str:
 
 
 def texture(cx: float, cy: float, r: float) -> str:
-    """松露表面的疙瘩颗粒：按黄金角螺旋散落，大小不一，避免构成人脸。"""
+    """平面设计：更大、间距更大的竖向大眼睛；雀斑由眼睛位置推导，偏外侧分布。"""
+    # ---- 先确定眼睛 ----
+    eye_w = 0.185 * r          # 眼睛宽（窄）
+    eye_h = 0.550 * r          # 眼睛高（加大尺寸）
+    eye_rx = 0.065 * r         # 圆角
+    gap = 0.285 * r            # 两眼中心间距的一半（进一步加大眼距）
+    shift_x = 0.085 * r        # 整体向右偏移（看向右侧）
+    eye_cy = cy - 0.06 * r     # 略高于中心
+    left_eye_cx = cx + shift_x - gap
+    right_eye_cx = cx + shift_x + gap
+
     elements = []
-    count = 12
-    golden = 2.399963
-    for i in range(count):
-        angle = i * golden
-        dist = r * 0.68 * math.sqrt((i + 0.6) / count)
-        x = cx + dist * math.cos(angle)
-        y = cy + dist * math.sin(angle) * 0.90
-        radius = r * (0.018 + 0.016 * ((i * 5) % 3))
+
+    # ---- 再由眼睛位置确定雀斑 ----
+    # 偏向眼睛的外侧下方（不是正下方）；左眼一组间距略大于右眼一组
+    freckle_color = "#F1E2A6"
+    left_offsets = [
+        (-0.13, 0.18, 0.018),
+        (-0.27, 0.22, 0.016),
+        (-0.41, 0.20, 0.015),
+        (-0.18, 0.36, 0.016),
+        (-0.32, 0.41, 0.014),
+        (-0.46, 0.34, 0.013),
+    ]
+    right_offsets = [
+        (0.12, 0.18, 0.018),
+        (0.23, 0.22, 0.016),
+        (0.34, 0.20, 0.015),
+        (0.16, 0.36, 0.016),
+        (0.27, 0.41, 0.014),
+        (0.38, 0.34, 0.013),
+    ]
+    for ecx, offsets in ((left_eye_cx, left_offsets), (right_eye_cx, right_offsets)):
+        for dx, dy, sr in offsets:
+            x = ecx + dx * r
+            y = eye_cy + dy * r
+            elements.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{sr * r:.1f}" '
+                f'fill="{freckle_color}" opacity="0.85"/>'
+            )
+
+    # ---- 眼睛 ----
+    for ecx in (left_eye_cx, right_eye_cx):
+        x = ecx - eye_w / 2
+        y = eye_cy - eye_h / 2
         elements.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{radius:.1f}" '
-            f'fill="{GOLD_SOFT}" opacity="0.40"/>'
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{eye_w:.1f}" height="{eye_h:.1f}" '
+            f'rx="{eye_rx:.1f}" ry="{eye_rx:.1f}" fill="{GOLD}"/>'
         )
     return "\n      ".join(elements)
 
@@ -89,7 +124,7 @@ def build_svg(size: int = 512) -> str:
   </defs>
   <rect x="0" y="0" width="{size}" height="{size}" rx="{size*0.225:.0f}" fill="url(#bg)"/>
   <rect x="0" y="0" width="{size}" height="{size}" rx="{size*0.225:.0f}" fill="url(#glow)"/>
-  <path d="{path}" fill="url(#body)" stroke="{GOLD}" stroke-width="{size*0.030:.1f}" stroke-linejoin="round"/>
+  <path d="{path}" fill="url(#body)" stroke="{GOLD}" stroke-width="{size*0.038:.1f}" stroke-linejoin="round"/>
   {tex}
 </svg>
 '''
