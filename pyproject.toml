@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "truffle"
+version = "0.0.1"
+description = "AI-driven photo/video retouching desktop app for Windows"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6",
+    "opencv-python>=4.9,<5",
+    "numpy>=1.26,<2.0",
+    "mediapipe>=0.10.14",
+    "openai>=1.30",
+    "python-dotenv>=1.0",
+    "Pillow>=10.0",
+]
+
+[project.scripts]
+truffle = "truffle.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

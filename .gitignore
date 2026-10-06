@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.spec
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 配置与密钥（绝不入库）
+.env
+config.local.json
+secrets/
+
+# 模型权重
+models/
+*.onnx
+*.pth
+*.pt
+*.ckpt
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 系统
+Thumbs.db
+desktop.ini
+
+# 测试与缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
