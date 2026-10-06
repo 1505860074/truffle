@@ -39,6 +39,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 
 - 已初始化虚拟环境（双击过 `Truffle.vbs` 或手动建过 `.venv`）；
 - 制作安装包需要 **Inno Setup 6**：https://jrsoftware.org/isdl.php （装完后重跑 `build.ps1` 即可）。
+  脚本会自动从 PATH、常见路径、注册表三处探测 `ISCC.exe`，**装在任意盘符都能识别**。
 
 ## 产物说明
 

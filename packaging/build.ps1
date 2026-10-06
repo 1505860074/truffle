@@ -32,10 +32,33 @@ $sizeMB = [math]::Round((Get-ChildItem $green -Recurse -File | Measure-Object Le
 Write-Host "    绿色版输出: $green  (约 $sizeMB MB)"
 
 # 2. 若已安装 Inno Setup，则制作安装包
-$iscc = @(
-    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+function Find-Iscc {
+    # a) PATH 中
+    $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    # b) 常见安装路径
+    foreach ($c in @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+    )) { if (Test-Path $c) { return $c } }
+    # c) 注册表卸载项里的安装位置
+    $keys = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+    $entry = Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -like "Inno Setup*" -and $_.InstallLocation } |
+        Select-Object -First 1
+    if ($entry) {
+        $candidate = Join-Path $entry.InstallLocation.TrimEnd('\') "ISCC.exe"
+        if (Test-Path $candidate) { return $candidate }
+    }
+    return $null
+}
+
+$iscc = Find-Iscc
 
 if (-not $iscc) {
     Write-Warning "未检测到 Inno Setup 6，跳过安装包制作（绿色版已就绪）。"
@@ -43,7 +66,7 @@ if (-not $iscc) {
     exit 0
 }
 
-Write-Host "[2/2] Inno Setup 制作安装包..."
+Write-Host "[2/2] Inno Setup 制作安装包... (使用 $iscc)"
 & $iscc (Join-Path $PSScriptRoot "installer.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup 编译失败" }
 
