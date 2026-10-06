@@ -13,8 +13,10 @@ dependencies = [
     "numpy>=1.26,<2.0",
     "mediapipe>=0.10.14,<0.10.30",
     "openai>=1.30",
-    "Pillow>=10.0",
 ]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.6"]
 
 [project.scripts]
 truffle = "truffle.main:main"

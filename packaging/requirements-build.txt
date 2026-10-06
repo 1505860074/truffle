@@ -1,0 +1,3 @@
+# 打包专用依赖（终端用户不需要，仅发布时安装）
+# 安装：.\.venv\Scripts\python.exe -m pip install -r packaging\requirements-build.txt
+pyinstaller>=6.6

@@ -38,6 +38,19 @@
 
 - [架构设计](docs/architecture.md)
 - [开发路线图](docs/roadmap.md)
+- [打包与发布](docs/packaging.md)
+
+## 打包发布（发给终端用户）
+
+终端用户只需一个安装包，无需装 Python：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+```
+
+- 先打出绿色版到 `dist\Truffle\`；
+- 装了 [Inno Setup 6](https://jrsoftware.org/isdl.php) 后自动生成安装包 `dist\installer\Truffle-Setup-<版本>.exe`。
+- 详见 [打包与发布](docs/packaging.md)。
 
 ## 离线自检
 
