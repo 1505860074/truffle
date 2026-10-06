@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Qt
@@ -59,6 +60,8 @@ class MainWindow(QMainWindow):
 
     def _first_run_setup(self) -> None:
         """首次运行（未配置 API）时，自动弹出设置窗口，无需手动找菜单。"""
+        if os.environ.get("TRUFFLE_SMOKE") == "1":
+            return
         if self.settings.is_configured:
             return
         self.chat.add_system("首次使用：请先填写大模型配置，之后就能开始修图啦。")

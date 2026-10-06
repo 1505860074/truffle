@@ -1,14 +1,34 @@
-"""开发用启动脚本：无需安装即可 `python run.py` 运行。
+"""程序启动入口。
 
-安装过 `pip install -e .` 后，也可以直接用 `python -m truffle`。
+无控制台（pythonw）启动时看不到报错，因此这里把异常写入
+`%APPDATA%/Truffle/error.log`，便于排查。
 """
 
 import os
 import sys
+import traceback
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from truffle.main import main  # noqa: E402
+
+def _write_crash_log(exc: BaseException) -> None:
+    try:
+        base = os.environ.get("APPDATA") or str(Path.home())
+        log = Path(base) / "Truffle" / "error.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text("".join(traceback.format_exception(exc)), encoding="utf-8")
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        from truffle.main import main
+
+        main()
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001
+        _write_crash_log(exc)
+        raise

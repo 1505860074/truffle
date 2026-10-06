@@ -1,6 +1,7 @@
-# Windows 批处理必须使用 CRLF，否则 cmd 解析出错
+# Windows 批处理 / 脚本必须使用 CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf
+*.vbs text eol=crlf
 
 # 其余文本统一 LF
 *.py text eol=lf

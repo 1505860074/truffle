@@ -37,9 +37,4 @@ if not exist "%PY%" (
 )
 
 echo [Truffle] 正在启动...
-"%PY%" "%ROOT%run.py"
-if errorlevel 1 (
-    echo.
-    echo [错误] 程序异常退出，请把上面的报错信息发给开发者。
-    pause
-)
+start "" "%ROOT%.venv\Scripts\pythonw.exe" "%ROOT%run.py"
