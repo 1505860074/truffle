@@ -13,7 +13,6 @@ venv/
 env/
 
 # 配置与密钥（绝不入库）
-.env
 config.local.json
 secrets/
 

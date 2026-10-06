@@ -1,7 +1,7 @@
-"""全局配置：大模型 API 与用户设置的读写。
+"""全局配置：只从软件内部（用户配置文件）读取，无需事先注入环境变量。
 
-优先级：`.env`（开发默认） < 用户配置 `config.json`（界面里填写的值）。
-配置文件放在 `%APPDATA%/Truffle/config.json`，不会写进仓库。
+配置文件位置：`%APPDATA%/Truffle/config.json`，由软件内的「设置」对话框写入。
+首次启动若未配置，软件会自动弹出设置窗口引导填写。
 """
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ import json
 import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-
-from dotenv import load_dotenv
 
 from . import APP_NAME
 
@@ -43,19 +41,13 @@ class AppSettings:
     # ---------- 读写 ----------
     @classmethod
     def load(cls) -> "AppSettings":
-        load_dotenv()
-        llm = LLMSettings(
-            base_url=os.environ.get("TRUFFLE_LLM_BASE_URL", LLMSettings.base_url),
-            api_key=os.environ.get("TRUFFLE_LLM_API_KEY", ""),
-            model=os.environ.get("TRUFFLE_LLM_MODEL", LLMSettings.model),
-            timeout=int(os.environ.get("TRUFFLE_LLM_TIMEOUT", "60")),
-        )
+        llm = LLMSettings()
         if CONFIG_PATH.exists():
             try:
                 raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-                for k, v in raw.get("llm", {}).items():
-                    if hasattr(llm, k) and v not in (None, ""):
-                        setattr(llm, k, v)
+                for key, value in raw.get("llm", {}).items():
+                    if hasattr(llm, key) and value not in (None, ""):
+                        setattr(llm, key, value)
             except (json.JSONDecodeError, OSError):
                 pass
         return cls(llm=llm)

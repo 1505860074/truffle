@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QFileDialog,
     QMainWindow,
@@ -54,6 +54,15 @@ class MainWindow(QMainWindow):
         self.chat.add_system(
             "你好，我是 Truffle ✨ 打开一张图片，然后用大白话告诉我想怎么修吧。"
         )
+
+        QTimer.singleShot(300, self._first_run_setup)
+
+    def _first_run_setup(self) -> None:
+        """首次运行（未配置 API）时，自动弹出设置窗口，无需手动找菜单。"""
+        if self.settings.is_configured:
+            return
+        self.chat.add_system("首次使用：请先填写大模型配置，之后就能开始修图啦。")
+        self._open_settings()
 
     # ---------- 菜单 ----------
     def _build_menu(self) -> None:
@@ -140,7 +149,10 @@ class MainWindow(QMainWindow):
         if dialog.exec() == SettingsDialog.Accepted:
             self.settings.llm = dialog.result_settings()
             self.settings.save()
-            self.statusBar().showMessage("设置已保存", 4000)
+            if self.settings.is_configured:
+                self.statusBar().showMessage("配置已保存，可以开始修图啦", 5000)
+            else:
+                self.statusBar().showMessage("已保存，但 API Key 为空", 5000)
 
     # ---------- 对话 ----------
     def _on_submit(self, text: str) -> None:

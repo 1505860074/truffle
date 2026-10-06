@@ -10,31 +10,32 @@
 - **本地优先**：常规修饰不依赖网络、不上传原图，隐私安全、无按次成本。
 - **对话式交互**：面向非专业用户，用大白话就能修图，右侧实时预览。
 
-## 快速开始
+## 快速开始（一键启动）
+
+**双击项目根目录的 `Truffle.bat`** 即可。
+
+- 首次运行会自动创建运行环境并安装依赖（约 1~3 分钟，仅此一次），完成后自动打开软件；
+- 之后每次双击都是秒开；
+- 第一次打开软件会自动弹出配置窗口，**在软件内填写大模型 API** 即可开始，无需任何命令行或额外配置。
+
+> 前提：本机已安装 Python 3.10+（安装时勾选 “Add Python to PATH”）。若未安装，启动器会给出提示。
+
+### 开发方式手动启动（可选）
 
 ```powershell
-# 1. 创建虚拟环境
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# 2. 安装依赖（含 PyTorch 无关的轻量依赖）
-pip install -e .
-
-# 3. 配置大模型 API
-Copy-Item .env.example .env
-# 编辑 .env 填入你的 base_url / api_key / model
-
-# 4. 运行
-python -m truffle
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+.\.venv\Scripts\python.exe run.py
 ```
 
-也兼容任意 OpenAI 协议的服务（OpenAI、DeepSeek、通义、Kimi、智谱、Ollama 等），改 `.env` 里的 `TRUFFLE_LLM_BASE_URL` 即可。
+### 配置大模型
+
+在软件内「设置 → 大模型配置」填写，支持任意 OpenAI 兼容服务（OpenAI、DeepSeek、通义、Kimi、智谱、Ollama 等），只改「接口地址」和「模型名称」即可。
+配置保存在 `%APPDATA%\Truffle\config.json`，完全由软件自身读写。
 
 ## 文档
 
 - [架构设计](docs/architecture.md)
 - [开发路线图](docs/roadmap.md)
-- [手动测试文档](docs/manual-test.md)
 
 ## 离线自检
 
