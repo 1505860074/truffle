@@ -9,13 +9,19 @@ import numpy as np
 from .background_blur import BackgroundBlurTool
 from .base import BaseTool, ToolContext
 from .body_slim import BodySlimTool
+from .clone import CloneTool
 from .color_adjust import ColorAdjustTool
 from .color_temp import ColorTempTool
 from .curves import CurvesTool
 from .dehaze import DehazeTool
 from .distort import DistortTool
+from .dodge_burn import DodgeBurnTool
 from .enlarge_eyes import EnlargeEyesTool
 from .exposure import ExposureTool
+from .face_light import FaceLightTool
+from .hair_enhance import HairEnhanceTool
+from .iris import IrisTool
+from .local_adjust import LocalAdjustTool
 from .levels import LevelsTool
 from .noise_reduction import NoiseReductionTool
 from .eye_brighten import EyeBrightenTool
@@ -77,6 +83,9 @@ def build_default_registry() -> ToolRegistry:
         ColorAdjustTool(),
         ColorTempTool(),
         NoiseReductionTool(),
+        LocalAdjustTool(),
+        DodgeBurnTool(),
+        CloneTool(),
         HslTool(),
         CurvesTool(),
         ToneRecoveryTool(),
@@ -96,6 +105,9 @@ def build_default_registry() -> ToolRegistry:
         TeethWhitenTool(),
         RemoveDarkCirclesTool(),
         EyeBrightenTool(),
+        FaceLightTool(),
+        IrisTool(),
+        HairEnhanceTool(),
         HairColorTool(),
         LipstickTool(),
         BackgroundBlurTool(),
