@@ -95,6 +95,7 @@ class Analyzer:
     def __init__(self, max_faces: int = 5) -> None:
         self.max_faces = max_faces
         self._cache: dict[tuple, Analysis] = {}
+        self._cache_refs: dict[tuple, np.ndarray] = {}
         self._mesh = None
         if _HAS_MEDIAPIPE:
             try:
@@ -114,7 +115,9 @@ class Analyzer:
         self._pose = None
         self._segmenter = None
         self._pose_cache: dict[tuple, np.ndarray | None] = {}
+        self._pose_refs: dict[tuple, np.ndarray] = {}
         self._seg_cache: dict[tuple, np.ndarray | None] = {}
+        self._seg_refs: dict[tuple, np.ndarray] = {}
 
     # ---------- 对外 ----------
     def analyze(self, image: np.ndarray) -> Analysis:
@@ -127,7 +130,10 @@ class Analyzer:
             )
             if len(self._cache) > 16:  # 简单容量控制
                 self._cache.clear()
+                self._cache_refs.clear()
             self._cache[key] = cached
+            # 持有图像引用，避免 ndarray 释放后 id 被复用导致缓存串图
+            self._cache_refs[key] = image
         return cached
 
     def pose(self, image: np.ndarray) -> np.ndarray | None:
@@ -153,7 +159,9 @@ class Analyzer:
             )
         if len(self._pose_cache) > 8:
             self._pose_cache.clear()
+            self._pose_refs.clear()
         self._pose_cache[key] = points
+        self._pose_refs[key] = image
         return points
 
     def foreground(self, image: np.ndarray) -> np.ndarray | None:
@@ -175,7 +183,9 @@ class Analyzer:
         mask = cv2.GaussianBlur(mask, (0, 0), 3)
         if len(self._seg_cache) > 8:
             self._seg_cache.clear()
+            self._seg_refs.clear()
         self._seg_cache[key] = mask
+        self._seg_refs[key] = image
         return mask
 
     # ---------- 内部 ----------

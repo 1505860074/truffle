@@ -170,6 +170,61 @@ def _pexels(query: str, count: int, api_key: str, out_dir: Path, max_bytes: int)
     return saved
 
 
+def _randomuser(count: int, out_dir: Path, max_bytes: int, delay: float) -> list[Path]:
+    """randomuser.me 的人像照片（无需 key），适合人脸/肤色快速测试。"""
+    saved: list[Path] = []
+    page = 0
+    while len(saved) < count:
+        limit = min(100, count - len(saved))
+        url = f"https://randomuser.me/api/?results={limit}&page={page}"
+        try:
+            payload = json.loads(_request(url).decode("utf-8"))
+        except Exception:
+            break
+        results = payload.get("results", [])
+        if not results:
+            break
+        for item in results:
+            picture = item.get("picture") or {}
+            image_url = picture.get("large") or picture.get("medium")
+            if not image_url:
+                continue
+            path = _download(image_url, out_dir, f"portrait_{len(saved)}", max_bytes)
+            if path is not None:
+                saved.append(path)
+            if len(saved) >= count:
+                break
+            time.sleep(delay)
+        page += 1
+    return saved
+
+
+def _picsum(count: int, out_dir: Path, max_bytes: int, delay: float) -> list[Path]:
+    """Lorem Picsum 的通用照片（无需 key），适合色调/影调测试。"""
+    saved: list[Path] = []
+    page = 1
+    while len(saved) < count:
+        url = f"https://picsum.photos/v2/list?page={page}&limit={min(50, count - len(saved))}"
+        try:
+            items = json.loads(_request(url).decode("utf-8"))
+        except Exception:
+            break
+        if not items:
+            break
+        for item in items:
+            download_url = item.get("download_url")
+            if not download_url:
+                continue
+            path = _download(download_url, out_dir, f"photo_{item.get('id', len(saved))}", max_bytes)
+            if path is not None:
+                saved.append(path)
+            if len(saved) >= count:
+                break
+            time.sleep(delay)
+        page += 1
+    return saved
+
+
 def _urls_file(path: Path, out_dir: Path, max_bytes: int, delay: float) -> list[Path]:
     saved: list[Path] = []
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -185,7 +240,11 @@ def _urls_file(path: Path, out_dir: Path, max_bytes: int, delay: float) -> list[
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", choices=["wikimedia", "unsplash", "pexels", "urls"], default="wikimedia")
+    parser.add_argument(
+        "--source",
+        choices=["auto", "randomuser", "picsum", "wikimedia", "unsplash", "pexels", "urls"],
+        default="auto",
+    )
     parser.add_argument("--query", default="portrait photography")
     parser.add_argument("--count", type=int, default=50)
     parser.add_argument("--out", type=Path, default=Path("test_images"))
@@ -197,7 +256,15 @@ def main() -> int:
 
     out_dir = args.out / args.source
     out_dir.mkdir(parents=True, exist_ok=True)
-    if args.source == "wikimedia":
+    if args.source == "auto":
+        saved = _randomuser(args.count, out_dir, args.max_bytes, args.delay)
+        if not saved:
+            saved = _picsum(args.count, out_dir, args.max_bytes, args.delay)
+    elif args.source == "randomuser":
+        saved = _randomuser(args.count, out_dir, args.max_bytes, args.delay)
+    elif args.source == "picsum":
+        saved = _picsum(args.count, out_dir, args.max_bytes, args.delay)
+    elif args.source == "wikimedia":
         saved = _wikimedia(args.query, args.count, out_dir, args.max_bytes, args.delay)
     elif args.source == "unsplash":
         if not args.api_key:

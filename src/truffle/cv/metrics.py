@@ -368,11 +368,21 @@ def _body_metrics(pose: np.ndarray | None) -> dict[str, Any] | None:
         height = max(1.0, (_dist(_pt(pose, 0), (la + ra) / 2)))
         center = np.mean([ls, rs, lh, rh], axis=0)
         sym = 1.0 - (_dist(ls, center) + _dist(lh, center) - _dist(rs, center) - _dist(rh, center))
+        shoulder_hip = shoulder / max(1.0, hip)
+        waist_hip = waist / max(1.0, hip)
+        leg_body = leg / max(1.0, height)
+        # 半身/头像容易被 Pose 误判成人体；比例明显不合理时直接丢弃
+        if not (0.55 <= shoulder_hip <= 2.6):
+            return None
+        if not (0.45 <= waist_hip <= 1.05):
+            return None
+        if not (0.30 <= leg_body <= 0.75):
+            return None
         return {
             "pose_conf": 1.0,
-            "shoulder_hip": round(shoulder / max(1.0, hip), 3),
-            "waist_hip": round(waist / max(1.0, hip), 3),
-            "leg_body": round(leg / max(1.0, height), 3),
+            "shoulder_hip": round(shoulder_hip, 3),
+            "waist_hip": round(waist_hip, 3),
+            "leg_body": round(leg_body, 3),
             "symmetry": round(_clip(sym), 3),
         }
     except Exception:  # noqa: BLE001

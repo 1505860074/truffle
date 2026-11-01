@@ -182,28 +182,28 @@ PROFILES: dict[str, StyleProfile] = {
 # 人脸/形体目标统一放在 geometry 下；比例由指标模块按瞳距/身高归一化。
 _GEOMETRY_OVERRIDES = {
     "natural": {
-        "face_wh": (1.15, 1.50), "jaw": (0.65, 0.95), "eye_w": (0.38, 0.62),
-        "waist_hip": (0.65, 0.98), "leg_body": (0.38, 0.68),
+        "face_wh": (0.70, 1.00), "jaw": (1.70, 2.50), "eye_w": (0.35, 0.60),
+        "waist_hip": (0.65, 1.05), "leg_body": (0.35, 0.72),
     },
     "tangshui": {
-        "face_wh": (1.15, 1.30), "jaw": (0.64, 0.80), "eye_w": (0.48, 0.64),
-        "waist_hip": (0.70, 0.86), "leg_body": (0.50, 0.64),
+        "face_wh": (0.70, 0.80), "jaw": (1.65, 2.05), "eye_w": (0.48, 0.60),
+        "waist_hip": (0.65, 0.90), "leg_body": (0.40, 0.68),
     },
     "cold_white": {
-        "face_wh": (1.15, 1.42), "jaw": (0.68, 0.90), "eye_w": (0.40, 0.58),
+        "face_wh": (0.70, 0.96), "jaw": (1.70, 2.35), "eye_w": (0.36, 0.58),
     },
     "warm_film": {
-        "face_wh": (1.15, 1.45), "jaw": (0.68, 0.92), "eye_w": (0.40, 0.60),
+        "face_wh": (0.70, 0.98), "jaw": (1.70, 2.40), "eye_w": (0.36, 0.60),
     },
     "night": {
-        "face_wh": (1.15, 1.50), "jaw": (0.65, 0.95), "eye_w": (0.38, 0.62),
+        "face_wh": (0.70, 1.00), "jaw": (1.70, 2.50), "eye_w": (0.35, 0.60),
     },
     "id_photo": {
-        "face_wh": (1.18, 1.42), "jaw": (0.70, 0.90), "eye_w": (0.40, 0.55),
+        "face_wh": (0.72, 0.98), "jaw": (1.75, 2.40), "eye_w": (0.36, 0.56),
     },
     "high_sat_low_contrast": {
-        "face_wh": (1.13, 1.28), "jaw": (0.62, 0.78), "eye_w": (0.50, 0.66),
-        "waist_hip": (0.68, 0.84), "leg_body": (0.50, 0.66),
+        "face_wh": (0.68, 0.78), "jaw": (1.60, 2.00), "eye_w": (0.50, 0.62),
+        "waist_hip": (0.62, 0.88), "leg_body": (0.42, 0.70),
     },
 }
 for _sid, _geometry in _GEOMETRY_OVERRIDES.items():
