@@ -45,6 +45,7 @@ class Orchestrator:
         max_steps: int = 10,
         style_id: str = "natural",
         auto_solve: bool = True,
+        history_mode: str = "request",
     ) -> None:
         self.doc = doc
         self.registry = registry
@@ -53,6 +54,7 @@ class Orchestrator:
         self.max_steps = max_steps
         self.style_id = style_id
         self.auto_solve = auto_solve
+        self.history_mode = history_mode if history_mode in ("request", "tool") else "request"
         self.solver = ParamSolver(registry, analyzer)
         self.aesthetic = AestheticPrior()
         self.last_state: dict[str, Any] = {}
@@ -270,6 +272,13 @@ class Orchestrator:
                     on_tool(name, safe)
             except Exception as exc:  # noqa: BLE001
                 return f"工具 {name} 执行失败：{exc}"
+        if (
+            executed
+            and len(executed) > 1
+            and self.history_mode == "request"
+            and hasattr(self.doc, "collapse_recent")
+        ):
+            self.doc.collapse_recent(len(executed), "AI · " + profile.name, origin="ai")
         if on_image is not None and executed:
             on_image()
         if not executed:

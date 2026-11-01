@@ -75,6 +75,7 @@ class AppSettings:
     default_cover_mode: str = "active"  # active | first | tiles | custom
     project_assoc: bool = False      # 关联 .truffle 项目文件
     session_migrated: bool = False   # 旧 session.json 是否已迁移
+    agent_history_mode: str = "request"  # request = 一次请求一步；tool = 每个工具一步
 
     # ---------- 读写 ----------
     @classmethod
@@ -133,6 +134,8 @@ class AppSettings:
                     data.project_assoc = raw["project_assoc"]
                 if isinstance(raw.get("session_migrated"), bool):
                     data.session_migrated = raw["session_migrated"]
+                if raw.get("agent_history_mode") in ("request", "tool"):
+                    data.agent_history_mode = raw["agent_history_mode"]
             except (json.JSONDecodeError, OSError):
                 pass
         return data

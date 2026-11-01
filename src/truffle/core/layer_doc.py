@@ -272,6 +272,26 @@ class LayerDocument:
         self._invalidate()
 
     # ---------- 步骤 / 操作 ----------
+    def collapse_recent(self, count: int, label: str, origin: str = "ai") -> None:
+        """把最近 count 步合并成一步（用于「一次 AI 请求算一步」）。"""
+        count = int(count)
+        if count <= 1 or count > len(self._steps):
+            return
+        start = len(self._steps) - count
+        merged = []
+        for step in self._steps[start:]:
+            merged.append({
+                "kind": step.kind,
+                "label": step.label,
+                "origin": step.origin,
+                "data": step.data,
+            })
+        group = Step("group", label, {"jobs": merged}, origin=origin)
+        self._steps = self._steps[:start] + [group]
+        self._snapshots = self._snapshots[:start + 1] + [self._snapshots[-1]]
+        self._pointer = len(self._steps)
+        self._invalidate()
+
     def push(self, image: np.ndarray, label: str = "操作", origin: str = "") -> None:
         """用整张图替换当前图层（兼容旧接口）。"""
         if not self.is_loaded:

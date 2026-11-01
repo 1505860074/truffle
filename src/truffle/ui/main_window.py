@@ -429,6 +429,12 @@ class MainWindow(QMainWindow):
                 safe = self.registry.get(name).coerce_params(params)
                 self.doc.commit_tool(name, safe, new_image, origin="ai")
                 executed += 1
+            if (
+                executed > 1
+                and self.settings.agent_history_mode == "request"
+                and hasattr(self.doc, "collapse_recent")
+            ):
+                self.doc.collapse_recent(executed, "AI · " + profile.name, origin="ai")
             self._agent_style = profile.id
             self._agent_orchestrator = None
             if self.project is not None:
@@ -1599,6 +1605,7 @@ class MainWindow(QMainWindow):
         self.settings.project_dir = dialog.result_project_dir()
         self.settings.autosave_interval = dialog.result_autosave()
         self.settings.history_steps = dialog.result_history_steps()
+        self.settings.agent_history_mode = dialog.result_agent_history()
         self.settings.project_view = dialog.result_project_view()
         self.settings.default_cover_mode = dialog.result_cover_mode()
         self.settings.project_assoc = dialog.result_project_assoc()
@@ -1862,7 +1869,9 @@ class MainWindow(QMainWindow):
         self._commit_preview_silent()  # 把用户手动调节落进历史，AI 在其基础上继续
         self.params.reset_all()
         orchestrator = Orchestrator(
-            self.doc, self.registry, llm, self.analyzer, style_id=self._agent_style
+            self.doc, self.registry, llm, self.analyzer,
+            style_id=self._agent_style,
+            history_mode=self.settings.agent_history_mode,
         )
         self._agent_orchestrator = orchestrator
         self.chat.add_user(text)

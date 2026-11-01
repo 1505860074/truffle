@@ -7,6 +7,7 @@ from truffle.agent.solver import ParamSolver
 from truffle.agent.style import PROFILES, resolve_style, style_distance
 from truffle.cv.analyzer import Analyzer
 from truffle.cv.metrics import STATE_SCHEMA, measure
+from truffle.core.layer_doc import LayerDocument
 from truffle.tools.registry import build_default_registry
 
 
@@ -57,6 +58,21 @@ def test_solver_produces_jobs() -> None:
     assert result.before
     assert result.after
     assert 0.0 <= result.naturalness <= 1.0
+
+
+def test_collapse_history_group() -> None:
+    doc = LayerDocument()
+    image = np.full((32, 32, 3), 100, dtype=np.uint8)
+    doc.set_original(image)
+    doc.add_layer("a")
+    doc.add_layer("b")
+    assert len(doc.steps()) == 2
+    doc.collapse_recent(2, "AI 风格")
+    assert len(doc.steps()) == 1
+    assert doc.steps()[0].kind == "group"
+    assert doc.can_undo
+    assert doc.undo()
+    assert len(doc.layers()) == 1
 
 
 def test_contact_sheet_and_export(tmp_path) -> None:

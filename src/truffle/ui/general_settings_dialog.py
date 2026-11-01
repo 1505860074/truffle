@@ -49,6 +49,12 @@ class GeneralSettingsDialog(QDialog):
         self.history_steps.setRange(0, 100)
         self.history_steps.setValue(max(0, min(100, int(settings.history_steps))))
 
+        self.agent_history = QComboBox()
+        self.agent_history.addItem(tr("一次 AI 请求算一步"), "request")
+        self.agent_history.addItem(tr("每个工具算一步"), "tool")
+        idx = self.agent_history.findData(settings.agent_history_mode)
+        self.agent_history.setCurrentIndex(idx if idx >= 0 else 0)
+
         self.project_view = QComboBox()
         self.project_view.addItem(tr("卡片"), "card")
         self.project_view.addItem(tr("列表"), "list")
@@ -100,6 +106,7 @@ class GeneralSettingsDialog(QDialog):
         form.addRow(tr("默认项目目录"), dir_row)
         form.addRow(tr("自动保存间隔"), self.autosave)
         form.addRow(tr("每图历史步数"), self.history_steps)
+        form.addRow(tr("AI 历史粒度"), self.agent_history)
         form.addRow(tr("项目页视图"), self.project_view)
         form.addRow(tr("默认封面方式"), self.cover_mode)
         form.addRow(tr("主题"), self.theme)
@@ -143,6 +150,9 @@ class GeneralSettingsDialog(QDialog):
 
     def result_history_steps(self) -> int:
         return int(self.history_steps.value())
+
+    def result_agent_history(self) -> str:
+        return str(self.agent_history.currentData())
 
     def result_project_view(self) -> str:
         return str(self.project_view.currentData())
