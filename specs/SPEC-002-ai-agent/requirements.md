@@ -2,7 +2,7 @@
 
 > 文档编号：SPEC-002
 >
-> 状态：实现中（第一批核心已落地，待真实模型联调与后续工具补齐）
+> 状态：实现中（核心链路、局部/面部工具、ONNX 后端、历史粒度、一致性、配方模型已落地；待真实模型与 UI 交互联调）
 >
 > 目录：`specs/SPEC-002-ai-agent/`
 
@@ -452,9 +452,31 @@ score = style_distance
 7. 风格配方学习（目标分布 → 自监督配方 → 小模型）；
 8. 性能与 ONNX CUDA 回退优化。
 
-## 17. 变更记录
+## 17. 第二批实现记录与剩余缺口
+
+已落地：
+
+- 局部：`local_adjust`（矩形/椭圆/径向/线性）、`dodge_burn`、`clone`；
+- 面部：`face_light`、`iris`、`hair_enhance`；`cv/parsing.py` 支持 `models/face_parsing.onnx`，缺失时启发式回退；
+- ONNX：`cv/onnx_runtime.py` 按 CUDA → DirectML → CPU 选择 provider；
+- 美学：`agent/aesthetic.py` 弱先验/异常检测，模型缺失时规则回退；
+- 历史：`agent_history_mode` 可配置，`LayerDocument.collapse_recent` 合并请求步骤；
+- 一致性：`profile_with_consistency` 把项目基准混入目标，已接入批量求解；
+- 配方：`RecipeModel` 支持 sklearn GBDT（可选）与闭式岭回归回退，支持保存/加载。
+
+仍需补齐：
+
+- 真实 `face_parsing.onnx` / `aesthetic.onnx` 模型文件与许可证确认；
+- 局部蒙版的 UI 交互（当前为工具参数，尚无画布拖拽选区）；
+- 克隆/减淡加深的画笔式交互；
+- 配方训练数据采集与离线训练脚本；
+- 真实 LLM 联调（工具调用修复、日志回放、成本统计）；
+- 批量并发、进度取消与失败重试。
+
+## 18. 变更记录
 
 | 日期 | 变更 |
 | --- | --- |
 | 2026-11-01 | 初稿：确认文字状态、求解器、风格库、批量、导出与学习方向 |
 | 2026-11-01 | 第一批实现：metrics/style/solver/critic、apply_style、inspect_image、基础工具、成套预览与导出、配方记忆骨架 |
+| 2026-11-01 | 第二批实现：局部蒙版/克隆/减淡加深、面部光影/虹膜/头发、ONNX CUDA/DirectML、美学弱先验、历史粒度、批量一致性、GBDT/岭回归配方模型 |
