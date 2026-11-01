@@ -57,7 +57,7 @@ from ..cv.metrics import measure
 from ..cv.warp import local_push
 from ..tools.base import ToolContext
 from ..tools.pipeline import render_pipeline
-from ..tools.registry import build_default_registry
+from ..tools.registry import shared_registry
 from . import theme
 from .account_dialog import AccountDialog
 from .animated_dock import AnimatedDock
@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
         set_language(self.settings.language)
         self.doc = LayerDocument()
         self.doc.set_renderer(self._render_step)
-        self.registry = build_default_registry()
+        self.registry = shared_registry()
         self.analyzer = shared_analyzer()
         self._worker: AgentWorker | None = None
         self._preview_worker: PreviewWorker | None = None

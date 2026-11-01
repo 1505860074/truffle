@@ -65,9 +65,9 @@ class AppController(QObject):
         except Exception:
             pass
         try:
-            from ..tools.registry import build_default_registry
+            from ..tools.registry import shared_registry
 
-            build_default_registry()
+            shared_registry()
         except Exception:
             pass
 

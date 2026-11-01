@@ -118,3 +118,14 @@ def build_default_registry() -> ToolRegistry:
     ):
         registry.register(tool)
     return registry
+
+
+_SHARED_REGISTRY: ToolRegistry | None = None
+
+
+def shared_registry() -> ToolRegistry:
+    """进程级共享工具表，避免每个项目窗口重复构建。"""
+    global _SHARED_REGISTRY
+    if _SHARED_REGISTRY is None:
+        _SHARED_REGISTRY = build_default_registry()
+    return _SHARED_REGISTRY
