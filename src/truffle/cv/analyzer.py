@@ -210,3 +210,14 @@ class Analyzer:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         detected = self._haar.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
         return [Face(box=tuple(int(v) for v in box)) for box in detected]
+
+
+_SHARED_ANALYZER: Analyzer | None = None
+
+
+def shared_analyzer() -> Analyzer:
+    """进程级共享分析器：启动预热一次，打开项目时不再重复加载模型。"""
+    global _SHARED_ANALYZER
+    if _SHARED_ANALYZER is None:
+        _SHARED_ANALYZER = Analyzer()
+    return _SHARED_ANALYZER

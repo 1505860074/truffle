@@ -48,8 +48,28 @@ class AppController(QObject):
         self.page.quitRequested.connect(self.quit)
         self._start_ipc()
         self.page.showMaximized()
+        QTimer.singleShot(50, self._warmup)
         if initial:
             QTimer.singleShot(0, lambda: self.open_project(initial))
+
+    def _warmup(self) -> None:
+        """提前导入主窗口与加载分析模型，减少首次打开项目的等待。"""
+        try:
+            from ..cv.analyzer import shared_analyzer
+
+            shared_analyzer()
+        except Exception:
+            pass
+        try:
+            from .main_window import MainWindow  # noqa: F401
+        except Exception:
+            pass
+        try:
+            from ..tools.registry import build_default_registry
+
+            build_default_registry()
+        except Exception:
+            pass
 
     def _startup_dialogs(self) -> None:
         if os.environ.get("TRUFFLE_SMOKE") == "1":

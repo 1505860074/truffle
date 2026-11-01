@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import traceback
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -27,7 +31,25 @@ def friendly_error(exc: BaseException) -> str:
         return tr("请求超时，请检查网络或稍后重试。")
     if "Connection" in name or "Connect" in name or "getaddrinfo" in low:
         return tr("网络连接失败，请检查网络或接口地址。")
+    if "model" in low and any(word in low for word in ("not found", "not exist", "does not exist", "invalid")):
+        return tr("模型名称无效或不可用，请在设置中检查模型名称，并确认该模型支持工具调用（如 deepseek-chat）。")
+    if "tool" in low and ("support" in low or "not" in low):
+        return tr("当前模型可能不支持工具调用，请换用支持 function calling 的模型。")
+    if "400" in text:
+        return tr("请求被拒绝（400）。请检查模型名称、工具调用支持与请求参数。")
     return text or name
+
+
+def _log_exception(exc: BaseException) -> None:
+    try:
+        base = Path(os.environ.get("APPDATA") or Path.home()) / "Truffle"
+        base.mkdir(parents=True, exist_ok=True)
+        path = base / "error.log"
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} [agent] =====\n")
+            handle.write("".join(traceback.format_exception(exc)))
+    except Exception:
+        pass
 
 
 class AgentWorker(QThread):
@@ -64,6 +86,7 @@ class AgentWorker(QThread):
             )
             self.replied.emit(reply)
         except Exception as exc:  # 线程内异常必须捕获后经信号回传
+            _log_exception(exc)
             self.failed.emit(friendly_error(exc))
 
 

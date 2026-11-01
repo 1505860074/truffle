@@ -52,7 +52,7 @@ from ..core.layer_doc import LayerDocument
 from ..core.project import ImagePayload, Project, read_image_state
 from ..core.layers import ensure_bgra
 from ..core.style import profile as style_profile
-from ..cv.analyzer import Analyzer
+from ..cv.analyzer import Analyzer, shared_analyzer
 from ..cv.metrics import measure
 from ..cv.warp import local_push
 from ..tools.base import ToolContext
@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
         self.doc = LayerDocument()
         self.doc.set_renderer(self._render_step)
         self.registry = build_default_registry()
-        self.analyzer = Analyzer()
+        self.analyzer = shared_analyzer()
         self._worker: AgentWorker | None = None
         self._preview_worker: PreviewWorker | None = None
         self._preview_image: np.ndarray | None = None
@@ -234,6 +234,7 @@ class MainWindow(QMainWindow):
         project = self.project
         if project is None:
             return
+        self.library.path_mapper = self._map_project_path
         for entry in project.images:
             path = str(project.source_path(entry))
             if Path(path).exists():
@@ -257,6 +258,26 @@ class MainWindow(QMainWindow):
             self._autosave.setInterval(interval * 1000)
             self._autosave.timeout.connect(self._on_autosave)
             self._autosave.start()
+
+    def _map_project_path(self, path: str) -> str:
+        """文件库添加外部图片时，立即复制进项目并返回项目内路径。"""
+        if self.project is None:
+            return path
+        source = Path(path)
+        try:
+            source.resolve().relative_to(self.project.workdir.resolve())
+            return str(source)
+        except Exception:
+            pass
+        try:
+            entry = self.project.add_image(source)
+            mapped = str(self.project.source_path(entry))
+            self._library_ids[mapped] = entry.id
+            self._mark_dirty()
+            return mapped
+        except Exception as exc:  # noqa: BLE001
+            self.chat.add_system(tr("加入项目失败：") + str(exc))
+            return path
 
     def _stash_current_image(self) -> None:
         if self.project is None or not self.doc.is_loaded:

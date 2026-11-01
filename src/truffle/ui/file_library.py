@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 from PySide6.QtCore import QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
@@ -123,6 +124,7 @@ class FileLibrary(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._paths: list[str] = []
+        self.path_mapper: Callable[[str], str] | None = None
         self.setMinimumHeight(140)
         self.setObjectName("fileLibrary")
 
@@ -187,7 +189,8 @@ class FileLibrary(QWidget):
     def add_paths(self, paths: list[str]) -> list[str]:
         added: list[str] = []
         for p in paths:
-            rp = str(Path(p))
+            mapped = self.path_mapper(str(Path(p))) if self.path_mapper is not None else str(Path(p))
+            rp = str(Path(mapped))
             if rp in self._paths:
                 continue
             item = QListWidgetItem(self._thumb(rp), Path(rp).name)

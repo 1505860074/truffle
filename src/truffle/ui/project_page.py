@@ -592,7 +592,6 @@ class ProjectPage(QWidget):
             QMessageBox.critical(self, tr("新建项目"), str(exc))
             return
         self.recent.add(target, target.stem)
-        self.refresh()
         self.openRequested.emit(str(target))
 
     def _import_project(self) -> None:
