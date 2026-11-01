@@ -19,6 +19,7 @@ class Critique:
     issues: list[str] = field(default_factory=list)
     deltas: dict[str, float] = field(default_factory=dict)
     suggestions: list[str] = field(default_factory=list)
+    aesthetic: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -28,6 +29,7 @@ class Critique:
             "issues": list(self.issues),
             "deltas": dict(self.deltas),
             "suggestions": list(self.suggestions),
+            "aesthetic": dict(self.aesthetic),
         }
 
     def text(self) -> str:
@@ -42,6 +44,7 @@ def evaluate(
     profile: StyleProfile,
     jobs: list[tuple[str, dict[str, Any]]] | None = None,
     naturalness: float = 1.0,
+    aesthetic: dict[str, Any] | None = None,
 ) -> Critique:
     distance, deltas = style_distance(after, profile)
     issues: list[str] = []
@@ -73,6 +76,13 @@ def evaluate(
     if naturalness < 0.65:
         issues.append("over_edited")
         suggestions.append("整体强度过高")
+    aesthetic = aesthetic or {}
+    if float(aesthetic.get("score", 1.0)) < 0.35:
+        issues.append("aesthetic_anomaly")
+        suggestions.append("检查曝光/色彩/噪点")
+    for issue in aesthetic.get("issues", []):
+        if issue not in issues:
+            issues.append(str(issue))
 
     if distance > 0.25:
         suggestions.append("继续向风格目标靠拢")
@@ -84,6 +94,7 @@ def evaluate(
         issues=issues,
         deltas=deltas,
         suggestions=suggestions,
+        aesthetic=dict(aesthetic),
     )
 
 

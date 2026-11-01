@@ -15,6 +15,7 @@ from ..cv.analyzer import Analyzer
 from ..cv.metrics import measure
 from ..tools.base import ToolContext
 from ..tools.registry import ToolRegistry
+from .aesthetic import AestheticPrior
 from .critic import evaluate
 from .llm_client import LLMClient
 from .prompts import SYSTEM_PROMPT
@@ -53,6 +54,7 @@ class Orchestrator:
         self.style_id = style_id
         self.auto_solve = auto_solve
         self.solver = ParamSolver(registry, analyzer)
+        self.aesthetic = AestheticPrior()
         self.last_state: dict[str, Any] = {}
         self.last_critique: dict[str, Any] | None = None
         self.last_jobs: list[tuple[str, dict[str, Any]]] = []
@@ -96,6 +98,10 @@ class Orchestrator:
             style = resolve_style(self.style_id)
             system += "\n\n[IMAGE_STATE]\n" + json.dumps(
                 self.last_state, ensure_ascii=False, separators=(",", ":")
+            )
+            aesthetic = self.aesthetic.score(current, self.last_state)
+            system += "\n\n[AESTHETIC]\n" + json.dumps(
+                aesthetic, ensure_ascii=False, separators=(",", ":")
             )
             system += "\n\n[STYLE_TARGET]\n" + style_target_text(style)
             system += (
@@ -272,7 +278,8 @@ class Orchestrator:
                 ensure_ascii=False,
             )
         after = measure(self.doc.current, self.analyzer)
-        critique = evaluate(before, after, profile, executed, result.naturalness)
+        aesthetic = self.aesthetic.score(self.doc.current, after)
+        critique = evaluate(before, after, profile, executed, result.naturalness, aesthetic)
         self.last_state = after
         self.last_jobs = executed
         self.last_critique = critique.to_dict()
