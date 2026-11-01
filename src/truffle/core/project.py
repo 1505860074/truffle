@@ -481,6 +481,11 @@ class Project:
     def image_state_path(self, entry: ImageEntry) -> Path:
         return self.workdir / "images" / entry.id / "state.json"
 
+    def store_payload(self, entry: ImageEntry, payload: ImagePayload, history_steps: int = 20) -> None:
+        _write_image_state(self, entry, payload, history_steps)
+        entry.last_edited = _now()
+        self._touch()
+
     def entry(self, image_id: str) -> ImageEntry | None:
         for item in self.images:
             if item.id == image_id:

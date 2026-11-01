@@ -42,7 +42,7 @@ from .. import __version__
 from ..agent.llm_client import LLMClient
 from ..agent.orchestrator import Orchestrator
 from ..agent.solver import ParamSolver
-from ..agent.style import PROFILES, resolve_style
+from ..agent.style import PROFILES, infer_style, resolve_style
 from ..config import AppSettings
 from ..core.account import Account, AccountError
 from ..core.exif import inject_exif_app1, read_exif_app1
@@ -74,8 +74,10 @@ from .layers_panel import LayersPanel
 from .naming import area_name
 from .panel_icons import panel_icon
 from .param_panel import ParamPanel
+from .project_style_worker import ProjectStyleWorker
 from .series_dialog import SeriesDialog
 from .settings_dialog import SettingsDialog
+from .style_panel import StylePanel
 from .step_edit_dialog import StepEditDialog
 from .tool_labels import tool_label
 from .updater import DownloadWorker, UpdateWorker
@@ -118,6 +120,7 @@ class MainWindow(QMainWindow):
         self._autosave: QTimer | None = None
         self._agent_style = "natural"
         self._agent_orchestrator = None
+        self._style_worker = None
         if project is not None:
             self.setWindowTitle(f"Truffle · {project.name} · v{__version__}")
         else:
@@ -171,6 +174,15 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, self._chat_dock)
         self._chat_dock.set_target(440)
 
+        self.style_panel = StylePanel()
+        self.style_panel.applyCurrent.connect(self._apply_style_local)
+        self.style_panel.applyAll.connect(self._apply_all_style)
+        self.style_panel.autoStyle.connect(self._auto_style)
+        self._style_dock = AnimatedDock(area_name("style"), horizontal=True)
+        self._style_dock.setWidget(self.style_panel)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self._style_dock)
+        self._style_dock.set_target(320)
+
         self.params = ParamPanel(self.registry)
         self._right_split = QSplitter(Qt.Vertical)
         self._right_split.addWidget(self.params)
@@ -189,7 +201,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self._library_dock)
         self._library_dock.set_target(200)
 
-        for dock in (self._chat_dock, self._params_dock, self._library_dock):
+        for dock in (self._chat_dock, self._style_dock, self._params_dock, self._library_dock):
             title = QWidget()
             dock.setTitleBarWidget(title)
             self._dock_titles.append(title)
@@ -198,9 +210,12 @@ class MainWindow(QMainWindow):
         self._build_shortcuts()
         self._restore_layout()
 
-        self.statusBar().showMessage(
-            tr("就绪") + ("" if self.settings.is_configured else tr(" · 请先在「设置」中配置大模型 API"))
-        )
+        if self.settings.llm_enabled:
+            self.statusBar().showMessage(
+                tr("就绪") + ("" if self.settings.is_configured else tr(" · 请先在「设置」中配置大模型 API"))
+            )
+        else:
+            self.statusBar().showMessage(tr("就绪 · 选择风格后点击一键修图"))
         if self.project is not None:
             self.summary = str(self.project.chat.get("summary", ""))
             messages = self.project.chat.get("messages", [])
@@ -434,11 +449,85 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, tr("项目另存为"), str(exc))
 
+    def _auto_style(self) -> None:
+        if not self.doc.is_loaded:
+            self.chat.add_system(tr("请先打开一张图片。"))
+            return
+        try:
+            state = measure(self.doc.current, self.analyzer, body=False)
+            profile = infer_style(state)
+            self.style_panel.select_style(profile.id)
+            self._apply_style_local(profile.id)
+        except Exception as exc:  # noqa: BLE001
+            self.chat.add_system(tr("自动选择风格失败：") + str(exc))
+
+    def _apply_all_style(self, style_id: str, consistency: float) -> None:
+        if self.project is None:
+            self.chat.add_system(tr("一键应用到全部图片需要先打开项目。"))
+            return
+        if self._style_worker is not None and self._style_worker.isRunning():
+            return
+        if not self._save_project():
+            return
+        if self._autosave is not None:
+            self._autosave.stop()
+        history_steps = int(
+            self.project.history_steps
+            if self.project.history_steps is not None
+            else self.settings.history_steps
+        )
+        self.style_panel.set_busy(True)
+        self.style_panel.set_status(tr("正在处理项目图片…"))
+        worker = ProjectStyleWorker(
+            self.project,
+            self.registry,
+            self.analyzer,
+            style_id,
+            consistency=consistency,
+            history_steps=history_steps,
+            history_mode=self.settings.agent_history_mode,
+        )
+        worker.progress.connect(
+            lambda done, total: self.style_panel.set_status(f"{done}/{total}")
+        )
+        worker.finishedOk.connect(self._on_style_all_done)
+        worker.failed.connect(self._on_style_all_failed)
+        worker.finished.connect(self._on_style_all_finished)
+        self._style_worker = worker
+        worker.start()
+
+    def _on_style_all_done(self, count: int) -> None:
+        self._dirty = False
+        self.style_panel.set_status(tr("已完成 ") + str(count) + tr(" 张图片"))
+        self.chat.add_system(tr("一键修图完成：") + str(count) + tr(" 张图片。"))
+        active = self.project.active_image_id if self.project is not None else None
+        if active:
+            self._image_docs.pop(active, None)
+            self._image_selections.pop(active, None)
+            try:
+                self._activate_image(active, initial=True)
+            except Exception:
+                pass
+
+    def _on_style_all_failed(self, message: str) -> None:
+        self.style_panel.set_status(tr("失败：") + message)
+        self.chat.add_system(tr("一键修图失败：") + message)
+
+    def _on_style_all_finished(self) -> None:
+        self.style_panel.set_busy(False)
+        self._style_worker = None
+        if self._autosave is not None:
+            self._autosave.start()
+
     def _apply_style_local(self, style_id: str) -> None:
         if not self.doc.is_loaded:
             self.chat.add_system(tr("请先打开一张图片。"))
             return
         profile = resolve_style(style_id)
+        try:
+            self.style_panel.select_style(profile.id)
+        except Exception:
+            pass
         try:
             state = measure(self.doc.current, self.analyzer)
             solver = ParamSolver(self.registry, self.analyzer)
@@ -716,7 +805,8 @@ class MainWindow(QMainWindow):
         self._view_action(view_menu, tr("适合窗口"), "Ctrl+0", self.view.fit_to_view)
         self._view_action(view_menu, tr("实际像素"), "Ctrl+1", self.view.actual_size)
         view_menu.addSeparator()
-        for key in ("chat", "params", "files"):
+        keys = ("params", "files") if not self.settings.llm_enabled else ("chat", "params", "files")
+        for key in keys:
             act = view_menu.addAction(area_name(key))
             act.setCheckable(True)
             act.setChecked(True)
@@ -731,8 +821,9 @@ class MainWindow(QMainWindow):
         settings_menu = self.menuBar().addMenu(tr("设置"))
         general_act = settings_menu.addAction(tr("常规设置…"))
         general_act.triggered.connect(self._open_general_settings)
-        cfg_act = settings_menu.addAction(tr("大模型配置…"))
-        cfg_act.triggered.connect(self._open_settings)
+        if self.settings.llm_enabled:
+            cfg_act = settings_menu.addAction(tr("大模型配置…"))
+            cfg_act.triggered.connect(self._open_settings)
         diag_act = settings_menu.addAction(tr("导出诊断信息…"))
         diag_act.triggered.connect(self._export_diagnostics)
         update_act = settings_menu.addAction(tr("检查更新…"))
@@ -807,7 +898,7 @@ class MainWindow(QMainWindow):
         self._brand.setStyleSheet(
             f"color:{t['accent']}; font-size:12px; font-weight:bold; padding:0 6px;"
         )
-        for widget in (self.chat, self.params, self.history, self.library, self.view,
+        for widget in (self.chat, self.style_panel, self.params, self.history, self.library, self.view,
                        self.layers, self.canvas_tools):
             if hasattr(widget, "apply_theme"):
                 widget.apply_theme()
@@ -854,6 +945,11 @@ class MainWindow(QMainWindow):
             act = self._panel_btns.get("menu_" + key)
             if act is not None:
                 act.setChecked(visible)
+        if not self.settings.llm_enabled:
+            self._chat_dock.setVisible(False)
+            btn = self._panel_btns.get("chat")
+            if btn is not None:
+                btn.setChecked(False)
         if s.window_geometry:
             try:
                 self.restoreGeometry(base64.b64decode(s.window_geometry))

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 AREA_NAMES: dict[str, str] = {
     "menu": "菜单栏",
+    "style": "风格栏",
     "chat": "对话栏",
     "canvas": "画布区",
     "files": "文件库",

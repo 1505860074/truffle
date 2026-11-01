@@ -307,7 +307,8 @@ class ProjectPage(QWidget):
         self.settings_btn.setPopupMode(QToolButton.InstantPopup)
         settings_menu = QMenu(self.settings_btn)
         settings_menu.addAction(tr("常规设置…"), self._open_settings)
-        settings_menu.addAction(tr("大模型配置…"), self._open_llm_settings)
+        if self.settings.llm_enabled:
+            settings_menu.addAction(tr("大模型配置…"), self._open_llm_settings)
         self.settings_btn.setMenu(settings_menu)
         self.account_btn = QToolButton()
         self.account_btn.setText(tr("账号"))

@@ -74,7 +74,9 @@ class AppController(QObject):
     def _startup_dialogs(self) -> None:
         if os.environ.get("TRUFFLE_SMOKE") == "1":
             return
-        if not self.settings.is_configured:
+        if not self.settings.llm_enabled:
+            self.ai_enabled = False
+        elif not self.settings.is_configured:
             dialog = SettingsDialog(self.settings.llm)
             if dialog.exec() == SettingsDialog.Accepted:
                 self.settings.llm = dialog.result_settings()
@@ -123,7 +125,7 @@ class AppController(QObject):
         try:
             from .main_window import MainWindow
 
-            ai_ok = bool(self.settings.is_configured)
+            ai_ok = bool(self.settings.llm_enabled and self.settings.is_configured)
             acc = Account(self.settings)
             if self.settings.require_login and acc.configured() and not acc.logged_in():
                 ai_ok = False

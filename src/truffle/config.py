@@ -76,6 +76,7 @@ class AppSettings:
     project_assoc: bool = False      # 关联 .truffle 项目文件
     session_migrated: bool = False   # 旧 session.json 是否已迁移
     agent_history_mode: str = "request"  # request = 一次请求一步；tool = 每个工具一步
+    llm_enabled: bool = False        # 是否启用大模型对话；默认只用本地风格策略
 
     # ---------- 读写 ----------
     @classmethod
@@ -136,6 +137,8 @@ class AppSettings:
                     data.session_migrated = raw["session_migrated"]
                 if raw.get("agent_history_mode") in ("request", "tool"):
                     data.agent_history_mode = raw["agent_history_mode"]
+                if isinstance(raw.get("llm_enabled"), bool):
+                    data.llm_enabled = raw["llm_enabled"]
             except (json.JSONDecodeError, OSError):
                 pass
         return data

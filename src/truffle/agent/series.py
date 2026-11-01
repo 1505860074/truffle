@@ -128,6 +128,80 @@ def solve_series(
     return results
 
 
+def apply_style_to_project(
+    project,
+    registry,
+    analyzer: Analyzer,
+    profile: StyleProfile,
+    *,
+    consistency: float = 0.8,
+    history_steps: int = 20,
+    history_mode: str = "request",
+    progress=None,
+) -> int:
+    """一键把风格应用到项目全部图片，并写回项目状态。"""
+    from ..core.layer_doc import LayerDocument
+    from ..core.project import ImagePayload, read_image_state
+
+    entries = list(project.images)
+    if not entries:
+        return 0
+    source_images: list[np.ndarray] = []
+    for entry in entries:
+        path = project.source_path(entry)
+        try:
+            data = np.fromfile(str(path), dtype=np.uint8)
+            image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+            if image is not None:
+                source_images.append(image)
+        except Exception:
+            pass
+    plan = plan_series(source_images, analyzer, profile, consistency) if source_images else None
+    adjusted = profile_with_consistency(profile, plan.baseline, consistency) if plan else profile
+    solver = ParamSolver(registry, analyzer, preview_max=640, max_iterations=1, max_evaluations=8)
+    done = 0
+    for entry in entries:
+        payload = read_image_state(project, entry)
+        if payload is None:
+            doc = LayerDocument()
+            try:
+                doc.load(str(project.source_path(entry)))
+            except Exception:
+                continue
+            payload = ImagePayload(doc=doc)
+        doc = payload.doc
+        try:
+            state = measure(doc.current, analyzer)
+            result = solver.solve(doc.current, adjusted, state)
+            executed = 0
+            for name, params in result.jobs:
+                source = doc.tool_source()
+                from ..tools.base import ToolContext
+
+                new_image = registry.execute(name, source, ToolContext(analyzer), params)
+                safe = registry.get(name).coerce_params(params)
+                doc.commit_tool(name, safe, new_image, origin="ai")
+                executed += 1
+            if executed > 1 and history_mode == "request" and hasattr(doc, "collapse_recent"):
+                doc.collapse_recent(executed, "AI · " + profile.name, origin="ai")
+            project.store_payload(entry, payload, history_steps)
+            done += 1
+        except Exception:
+            continue
+        if progress is not None:
+            progress(done, len(entries))
+    project.save(
+        {},
+        project.active_image_id,
+        project.chat.get("messages", []),
+        project.chat.get("summary", ""),
+        project.layout,
+        history_steps,
+        str(project.cover.get("mode", "active")),
+    )
+    return done
+
+
 def contact_sheet(
     images: list[np.ndarray],
     columns: int = 3,
