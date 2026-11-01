@@ -77,12 +77,14 @@ CATEGORIES: list[tuple[str, list[str]]] = [
     ("人像", [
         "skin_smooth", "whiten", "slim_face", "enlarge_eyes",
         "remove_blemish", "teeth_whiten", "remove_dark_circles",
-        "eye_brighten", "hair_color", "lipstick",
+        "eye_brighten", "iris", "face_light", "hair_color", "hair_enhance", "lipstick",
     ]),
     ("调色", [
-        "color_adjust", "color_temp", "hsl", "curves", "tone_recovery",
-        "dehaze", "hdr", "sharpen_clarity", "vignette", "film",
+        "exposure", "levels", "color_adjust", "color_temp", "hsl", "curves",
+        "tone_recovery", "dehaze", "hdr", "sharpen_clarity", "noise_reduction",
+        "vignette", "film",
     ]),
+    ("局部", ["local_adjust", "dodge_burn", "clone"]),
     ("构图", ["rotate_flip"]),
     ("形体", ["body_slim", "leg_lengthen"]),
     ("特效", ["background_blur", "distort"]),
@@ -90,10 +92,12 @@ CATEGORIES: list[tuple[str, list[str]]] = [
 
 # 预览与导出共用的管线顺序：先调色影调 → 人像 → 形体 → 特效 → 构图（旋转放最后）
 PIPELINE_ORDER = [
-    "color_adjust", "color_temp", "hsl", "curves", "tone_recovery", "dehaze", "hdr",
-    "sharpen_clarity", "vignette", "film",
+    "exposure", "levels", "color_adjust", "color_temp", "hsl", "curves",
+    "tone_recovery", "dehaze", "hdr", "sharpen_clarity", "noise_reduction",
+    "vignette", "film",
     "skin_smooth", "whiten", "remove_blemish", "teeth_whiten", "remove_dark_circles",
-    "eye_brighten", "hair_color", "lipstick",
+    "eye_brighten", "iris", "face_light", "hair_color", "hair_enhance", "lipstick",
+    "local_adjust", "dodge_burn", "clone",
     "slim_face", "enlarge_eyes",
     "body_slim", "leg_lengthen",
     "background_blur", "distort",
