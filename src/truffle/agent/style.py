@@ -210,6 +210,17 @@ for _sid, _geometry in _GEOMETRY_OVERRIDES.items():
             geometry={**PROFILES[_sid].geometry, **_geometry},
         )
 
+_FINISH_OVERRIDES = {
+    "tangshui": {"bokeh": (0.12, 0.30)},
+    "high_sat_low_contrast": {"bokeh": (0.10, 0.28)},
+}
+for _sid, _finish in _FINISH_OVERRIDES.items():
+    if _sid in PROFILES:
+        PROFILES[_sid] = replace(
+            PROFILES[_sid],
+            finish={**PROFILES[_sid].finish, **_finish},
+        )
+
 ALIASES = {
     "自然": "natural",
     "糖水": "tangshui",

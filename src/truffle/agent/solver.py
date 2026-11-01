@@ -254,6 +254,27 @@ class ParamSolver:
         if allow("teeth_whiten") and teeth is not None and teeth > 0.25:
             jobs.append(("teeth_whiten", {"strength": round(_clip((teeth - 0.2) / 0.5, 0.2, 0.6), 3)}))
 
+        glow_target = _center(profile, "style_vec.glow")
+        if allow("face_light") and state.get("faces") and glow_target is not None:
+            current_glow = float(state.get("style_vec", {}).get("glow", glow_target))
+            strength = _clip((glow_target - current_glow) * 0.9, 0.0, 0.35)
+            if strength > 0.03:
+                jobs.append(("face_light", {
+                    "strength": round(strength, 3),
+                    "warmth": 0.0,
+                    "feather": 0.5,
+                }))
+
+        noise_value = float(quality.get("noise", 0.0))
+        noise_max = _upper(profile, "quality.noise")
+        if allow("noise_reduction") and noise_max is not None and noise_value > noise_max:
+            noise_strength = _clip((noise_value - noise_max) / 0.25, 0.0, 0.6)
+            if noise_strength > 0.03:
+                jobs.append(("noise_reduction", {
+                    "strength": round(noise_strength, 3),
+                    "color": round(_clip(noise_strength * 0.8, 0.0, 0.6), 3),
+                }))
+
         sharp_target = _center(profile, "quality.sharp")
         if allow("sharpen_clarity") and sharp_target is not None:
             sharpen = _clip((sharp_target - float(quality.get("sharp", sharp_target))) / 0.5, 0.0, 0.55)
@@ -297,13 +318,26 @@ class ParamSolver:
             if strength > 0.03:
                 jobs.append(("leg_lengthen", {"strength": round(strength, 3)}))
 
+        bokeh = _center(profile, "finish.bokeh")
+        if allow("background_blur") and bokeh is not None and bokeh > 0.05 and state.get("faces"):
+            jobs.append(("background_blur", {
+                "strength": round(_clip(bokeh, 0.05, 0.45), 3),
+                "feather": 0.45,
+            }))
+
         grain = _center(profile, "finish.grain")
         if allow("film") and grain is not None and grain > 0.02:
-            jobs.append(("film", {"strength": round(_clip(grain * 1.8, 0.05, 0.5), 3)}))
+            jobs.append(("film", {
+                "grain": round(_clip(grain * 1.8, 0.05, 0.5), 3),
+                "fade": round(_clip(grain * 1.2, 0.02, 0.25), 3),
+            }))
 
         vignette = _center(profile, "finish.vignette")
         if allow("vignette") and vignette is not None and vignette > 0.02:
-            jobs.append(("vignette", {"strength": round(_clip(vignette, 0.05, 0.4), 3)}))
+            jobs.append(("vignette", {
+                "amount": round(_clip(vignette, 0.05, 0.4), 3),
+                "softness": 0.6,
+            }))
 
         return jobs
 

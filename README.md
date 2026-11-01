@@ -95,6 +95,16 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 .\.venv\Scripts\python.exe scripts\selftest.py "C:\path\your.jpg"
 ```
 
+## 风格离线评估
+
+用一组本地图片对一键风格做可重复评估，不改代码、不调用大模型：
+
+```powershell
+.\.venv\Scripts\python.exe scripts\eval_styles.py images\ --style all --out eval.csv
+```
+
+输出每张图的风格距离（前/后）、自然度、伪影数、耗时，便于比较风格版本和工具改动。
+
 ## 当前状态
 
 已完成 M0 脚手架，并补齐 Photoshop 式基础文档能力：
