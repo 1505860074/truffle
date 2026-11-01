@@ -30,14 +30,21 @@ for package in ("mediapipe", "cv2"):
 ICON = str(ROOT / "assets" / "truffle.ico")
 datas += [(ICON, "assets")]
 
+# 显式收录顶层包，避免只打包子模块、导致运行时导入父包失败（No module named 'truffle'）
+hiddenimports += ["truffle"]
+# 新增工具用到的 mediapipe 子模块（背景虚化/瘦身/长腿）
+hiddenimports += [
+    "mediapipe.python.solutions.pose",
+    "mediapipe.python.solutions.selfie_segmentation",
+]
+
 # ---------- 资源裁剪 ----------
-# 只用 face_mesh，用不到这些 solution 的模型文件
+# 用 face_mesh + pose + selfie_segmentation，用不到这些 solution 的模型文件
 MEDIAPIPE_DROP_MODULES = {
-    "hand_landmark", "palm_detection", "pose_landmark", "pose_detection",
-    "selfie_segmentation", "objectron", "holistic_landmark",
+    "hand_landmark", "palm_detection", "objectron", "holistic_landmark",
 }
-# 视频功能（M4）上线前，去掉 opencv 的 ffmpeg 视频编解码 dll（约 27MB）
-DROP_BINARIES = {"opencv_videoio_ffmpeg"}   # 前缀匹配
+# 视频功能已上线：保留 opencv 的 ffmpeg 视频编解码 dll（约 27MB）
+DROP_BINARIES: set[str] = set()   # 前缀匹配
 # 用不到的 Qt 动态库（体积优化）
 DROP_QT_DLLS = {"qt6quick.dll", "qt6qml.dll", "qt6pdf.dll"}
 
@@ -53,6 +60,9 @@ def _keep_data(entry):
         module = name.split("/mediapipe/modules/", 1)[1].split("/", 1)[0]
         if module in MEDIAPIPE_DROP_MODULES:
             return False
+    # 剔除 mediapipe 自带的测试/示例资源（体积优化）
+    if "_test.py" in name or "/test/" in name or "/tests/" in name or "testdata" in name:
+        return False
     if "pyside6/translations/" in name:
         return False
     if _is_pil(name):
@@ -89,7 +99,9 @@ excludes = [
     "PySide6.QtTest", "PySide6.QtDesigner", "PySide6.QtHelp",
     "PySide6.QtPdf", "PySide6.QtPdfWidgets", "PySide6.QtSpatialAudio",
     "PySide6.QtRemoteObjects", "PySide6.QtScxml", "PySide6.QtStateMachine",
-    "PySide6.QtWebChannel", "PySide6.QtWebSockets",
+    "PySide6.QtWebChannel", "PySide6.QtWebSockets", "PySide6.QtQuickControls2",
+    "PySide6.QtQuickDialogs", "PySide6.QtQuickLayouts", "PySide6.QtQuickTemplates2",
+    "PySide6.QtSvgWidgets", "PySide6.QtUiTools", "PySide6.QtNetworkAuth",
 ]
 
 a = Analysis(

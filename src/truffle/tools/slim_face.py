@@ -1,4 +1,4 @@
-"""瘦脸：沿下颌/脸颊两侧向脸中线做局部挤压形变。"""
+"""瘦脸：沿下颌/脸颊向脸中线做平滑挤压（高斯衰减，过渡自然，少拖背景）。"""
 
 from __future__ import annotations
 
@@ -9,18 +9,21 @@ from ..cv.warp import warp_by_points
 from .base import BaseTool, ToolContext, ToolParameter
 
 
+def _with_midpoints(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """在相邻控制点间补中点，让形变更顺滑。"""
+    out = list(points)
+    for i in range(len(points) - 1):
+        x0, y0 = points[i]
+        x1, y1 = points[i + 1]
+        out.append(((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+    return out
+
+
 class SlimFaceTool(BaseTool):
     name = "slim_face"
-    description = "瘦脸：让脸型更窄、下颌线更精致。会先检测人脸关键点再作用。"
+    description = "瘦脸：让脸型更窄、下颌线更精致，过渡自然。会先检测人脸关键点再作用。"
     parameters = [
-        ToolParameter(
-            "strength",
-            "瘦脸强度，0 无效果，1 最强。建议 0.3~0.6，过高会显得不自然。",
-            "number",
-            minimum=0.0,
-            maximum=1.0,
-            default=0.4,
-        )
+        ToolParameter("strength", "瘦脸强度，建议 0.3~0.6，过高会不自然。", "number", 0.0, 1.0, 0.4),
     ]
 
     def apply(self, image: np.ndarray, ctx: ToolContext, strength: float = 0.4) -> np.ndarray:
@@ -35,16 +38,15 @@ class SlimFaceTool(BaseTool):
             cx = face.center[0]
             src: list[tuple[float, float]] = []
             disp: list[tuple[float, float]] = []
-            for idx in JAW_LEFT:
-                x, y = float(lm[idx][0]), float(lm[idx][1])
-                if x < cx:
-                    src.append((x, y))
-                    disp.append(((cx - x) * 0.14 * strength, 0.0))
-            for idx in JAW_RIGHT:
-                x, y = float(lm[idx][0]), float(lm[idx][1])
-                if x > cx:
-                    src.append((x, y))
-                    disp.append((-(x - cx) * 0.14 * strength, 0.0))
-            radius = max(face.box[2] * 0.40, 20.0)
-            out = warp_by_points(out, src, disp, radius)
+            for indices, is_left in ((JAW_LEFT, True), (JAW_RIGHT, False)):
+                pts = _with_midpoints([(float(lm[i][0]), float(lm[i][1])) for i in indices])
+                for x, y in pts:
+                    if is_left and x < cx:
+                        src.append((x, y))
+                        disp.append(((cx - x) * 0.13 * strength, 0.0))
+                    elif (not is_left) and x > cx:
+                        src.append((x, y))
+                        disp.append((-(x - cx) * 0.13 * strength, 0.0))
+            radius = max(face.box[2] * 0.42, 24.0)
+            out = warp_by_points(out, src, disp, radius, falloff="gauss")
         return out

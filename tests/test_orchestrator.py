@@ -41,8 +41,7 @@ class FakeLLM:
 def _loaded_doc() -> ImageDocument:
     doc = ImageDocument()
     img = np.full((120, 120, 3), (140, 160, 205), dtype=np.uint8)
-    doc._original = img.copy()
-    doc._current = img.copy()
+    doc.set_original(img)
     return doc
 
 
@@ -68,6 +67,41 @@ def test_tool_call_updates_document():
     assert not np.array_equal(doc.current, before)
     # 第二轮请求里应包含 system、user、assistant(tool_calls)、tool 四条消息
     assert len(llm.seen[1]) == 4
+
+
+def test_apply_style_uses_solver():
+    doc = _loaded_doc()
+    before = doc.current.copy()
+    llm = FakeLLM(
+        [
+            FakeMessage(tool_calls=[FakeCall("1", "apply_style", '{"style": "tangshui"}')]),
+            FakeMessage(content="糖水风已经调好啦"),
+        ]
+    )
+    orch = Orchestrator(doc, build_default_registry(), llm, Analyzer())
+    updated = {"n": 0}
+    reply = orch.handle("帮我调成糖水风", on_image=lambda: updated.__setitem__("n", updated["n"] + 1))
+    assert reply == "糖水风已经调好啦"
+    assert doc.can_undo
+    assert updated["n"] == 1
+    assert not np.array_equal(doc.current, before)
+    assert orch.last_critique is not None
+
+
+def test_inspect_image_tool_returns_state():
+    doc = _loaded_doc()
+    llm = FakeLLM(
+        [
+            FakeMessage(tool_calls=[FakeCall("1", "inspect_image", "{}")]),
+            FakeMessage(content="看到了"),
+        ]
+    )
+    orch = Orchestrator(doc, build_default_registry(), llm, Analyzer())
+    reply = orch.handle("现在画面怎么样")
+    assert reply == "看到了"
+    tool_msg = llm.seen[1][-1]
+    assert tool_msg["role"] == "tool"
+    assert "tone" in tool_msg["content"]
 
 
 def test_plain_reply_without_tools():

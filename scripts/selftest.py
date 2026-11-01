@@ -78,11 +78,34 @@ def main() -> int:
     out_dir.mkdir(exist_ok=True)
 
     cases = [
+        # 人像修饰
         ("skin_smooth", {"strength": 0.7}),
         ("whiten", {"strength": 0.5}),
         ("remove_blemish", {"strength": 0.7, "threshold": 12}),
         ("slim_face", {"strength": 0.5}),
         ("enlarge_eyes", {"strength": 0.4}),
+        ("teeth_whiten", {"strength": 0.5}),
+        ("remove_dark_circles", {"strength": 0.5}),
+        ("eye_brighten", {"strength": 0.5, "sclera": 0.3}),
+        ("hair_color", {"hue": 0.05, "strength": 0.5}),
+        ("lipstick", {"hue": 0.98, "strength": 0.5}),
+        ("background_blur", {"strength": 0.6}),
+        # 调色 / 影调 / 构图
+        ("color_adjust", {"brightness": 0.1, "contrast": 0.1, "saturation": 0.2}),
+        ("color_temp", {"temperature": 0.3, "tint": 0.0}),
+        ("hsl", {"hue": 0.1, "saturation": 0.2, "lightness": 0.1}),
+        ("curves", {"black": 0.1, "shadows": 0.1, "midtones": 0.0, "highlights": -0.1, "white": 0.0}),
+        ("tone_recovery", {"highlights": -0.4, "shadows": 0.4}),
+        ("dehaze", {"strength": 0.5}),
+        ("hdr", {"strength": 0.5, "local_contrast": 0.3}),
+        ("sharpen_clarity", {"sharpen": 0.5, "clarity": 0.3}),
+        ("vignette", {"amount": 0.5, "softness": 0.6}),
+        ("film", {"grain": 0.4, "fade": 0.3}),
+        ("rotate_flip", {"rotate": 90, "flip": "none"}),
+        # 形体 / 形变
+        ("body_slim", {"strength": 0.4}),
+        ("leg_lengthen", {"strength": 0.3}),
+        ("distort", {"mode": "twirl", "strength": 0.4}),
     ]
 
     ok = 0
@@ -98,8 +121,34 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"[工具] {name:<16} 执行异常：{exc}")
 
-    print(f"\n[结果] {ok}/{len(cases)} 个工具正常执行。请打开 out_selftest/ 肉眼比对效果。")
-    return 0 if ok == len(cases) else 2
+    # 健壮性：在「无人脸/无人体」的噪声图上，所有工具都应安全返回（不崩溃、形状不变）
+    noise = np.random.default_rng(1).integers(0, 255, (200, 240, 3), dtype=np.uint8)
+    tools = registry.all()
+    robust_ok = 0
+    for tool in tools:
+        params = {p.name: p.default for p in tool.parameters}
+        try:
+            out = registry.execute(tool.name, noise, ctx, params)
+            assert out.shape == noise.shape and out.dtype == np.uint8
+            robust_ok += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"[健壮性] {tool.name} 异常：{exc}")
+
+    # 零参数应为无操作
+    noop_cases = [
+        ("whiten", {"strength": 0.0}),
+        ("color_adjust", {"brightness": 0.0, "contrast": 0.0, "saturation": 0.0}),
+        ("rotate_flip", {"rotate": 0, "flip": "none"}),
+    ]
+    noop_ok = sum(
+        1 for name, params in noop_cases
+        if np.array_equal(registry.execute(name, image, ctx, params), image)
+    )
+
+    print(f"[健壮性] {robust_ok}/{len(tools)} 个工具在无人脸图上安全返回")
+    print(f"[无操作] {noop_ok}/{len(noop_cases)} 个零参数用例与输入一致")
+    print(f"\n[结果] 工具 {ok}/{len(cases)} · 健壮性 {robust_ok}/{len(tools)} · 无操作 {noop_ok}/{len(noop_cases)}")
+    return 0 if (ok == len(cases) and robust_ok == len(tools) and noop_ok == len(noop_cases)) else 2
 
 
 if __name__ == "__main__":

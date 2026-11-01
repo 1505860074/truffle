@@ -6,6 +6,7 @@ __pycache__/
 # 打包产物（保留 packaging/ 下的 spec 与脚本）
 build/
 dist/
+dist_test/
 
 # 虚拟环境
 .venv/

@@ -23,8 +23,7 @@ def test_load_save_roundtrip(tmp_path):
 
 def test_undo_redo():
     doc = ImageDocument()
-    doc._original = _img(10)
-    doc._current = _img(10)
+    doc.set_original(_img(10))
 
     doc.push(_img(20))
     doc.push(_img(30))
@@ -43,8 +42,31 @@ def test_undo_redo():
 
 def test_reset_to_original():
     doc = ImageDocument()
-    doc._original = _img(10)
-    doc._current = _img(10)
+    doc.set_original(_img(10))
     doc.push(_img(99))
     doc.reset()
     assert doc.current[0, 0, 0] == 10
+
+
+def test_replayable_step_and_edit():
+    from truffle.core.image_doc import Step
+
+    doc = ImageDocument()
+    doc.set_original(_img(10))
+
+    # 可重放步骤：renderer 负责实际渲染（测试里用 +10 代替工具）
+    def render(image, step):
+        return np.clip(image.astype(np.int16) + step.data["add"], 0, 255).astype(np.uint8)
+
+    doc.set_renderer(render)
+    doc.push_op("tool", "t", {"add": 20})
+    doc.push_op("tool", "t", {"add": 30})
+    assert doc.current[0, 0, 0] == 60
+
+    # 修改第 0 步参数后，后续自动重算
+    doc.update_step(0, {"add": 5})
+    assert doc.current[0, 0, 0] == 45
+
+    # 删除第 0 步后重算
+    doc.delete_step(0)
+    assert doc.current[0, 0, 0] == 40

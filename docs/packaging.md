@@ -48,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Version 1.0.0
 
 ## 前置条件
 
-- 已初始化虚拟环境（双击过 `Truffle.vbs` 或手动建过 `.venv`）；
+- 已初始化虚拟环境（双击过 `Truffle.bat` 或手动建过 `.venv`）；
 - 制作安装包需要 **Inno Setup 6**：https://jrsoftware.org/isdl.php （装完后重跑 `build.ps1` 即可）。
   脚本会自动从 PATH、常见路径、注册表三处探测 `ISCC.exe`，**装在任意盘符都能识别**。
 
@@ -124,7 +124,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -Version 1.0.0
 
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
-| `build.ps1` 提示未找到虚拟环境 | 没初始化 `.venv` | 先双击 `Truffle.vbs` |
+| `build.ps1` 提示未找到虚拟环境 | 没初始化 `.venv` | 先双击 `Truffle.bat` |
 | 未生成安装包 | 未装 Inno Setup | 安装 Inno Setup 6 后重跑 |
 | 打出的程序闪退 | 裁剪过度/依赖缺失 | 看 `%APPDATA%\Truffle\error.log`，回退 `Truffle.spec` 对应裁剪项 |
 | 体积仍偏大 | `cv2.pyd` + `opencv_world3410.dll` | 见「后续优化」 |

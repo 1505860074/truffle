@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "truffle"
-version = "0.0.2"
+version = "0.0.15"
 description = "AI-driven photo/video retouching desktop app for Windows"
 requires-python = ">=3.10"
 dependencies = [

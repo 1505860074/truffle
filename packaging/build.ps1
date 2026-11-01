@@ -15,7 +15,9 @@
 param(
     [ValidateSet("patch", "minor", "major")]
     [string]$Bump = "patch",
-    [string]$Version = ""
+    [string]$Version = "",
+    # 增量打包（复用 build\work 缓存，明显更快；但可能残留旧文件，正式发版建议不带）
+    [switch]$NoClean
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,7 +27,7 @@ $pyproject = Join-Path $root "pyproject.toml"
 $init_file = Join-Path $root "src\truffle\__init__.py"
 
 if (-not (Test-Path $python)) {
-    throw "未找到虚拟环境 ($python)。请先双击 Truffle.vbs 初始化环境。"
+    throw "未找到虚拟环境 ($python)。请先双击 Truffle.bat 初始化环境。"
 }
 
 # ---------- 版本号读写 ----------
@@ -48,11 +50,11 @@ function Get-NextVersion([string]$current, [string]$kind) {
 }
 
 function Set-Version([string]$value) {
-    $content = Get-Content -LiteralPath $pyproject -Raw
+    $content = Get-Content -LiteralPath $pyproject -Raw -Encoding UTF8
     $content = [regex]::Replace($content, '(?m)^version\s*=\s*"[^"]+"', "version = `"$value`"", 1)
     [System.IO.File]::WriteAllText($pyproject, $content, (New-Object System.Text.UTF8Encoding($false)))
     if (Test-Path $init_file) {
-        $init = Get-Content -LiteralPath $init_file -Raw
+        $init = Get-Content -LiteralPath $init_file -Raw -Encoding UTF8
         $init = [regex]::Replace($init, '__version__\s*=\s*"[^"]+"', "__version__ = `"$value`"", 1)
         [System.IO.File]::WriteAllText($init_file, $init, (New-Object System.Text.UTF8Encoding($false)))
     }
@@ -100,10 +102,12 @@ try {
 
     # 1. PyInstaller 绿色版
     Write-Host "[1/2] PyInstaller 打包（green 版）..."
-    & $python -m PyInstaller (Join-Path $PSScriptRoot "Truffle.spec") `
-        --noconfirm --clean `
-        --distpath (Join-Path $root "dist") `
-        --workpath (Join-Path $root "build\work")
+    $pyiArgs = @(
+        "-m", "PyInstaller", (Join-Path $PSScriptRoot "Truffle.spec"), "--noconfirm",
+        "--distpath", (Join-Path $root "dist"), "--workpath", (Join-Path $root "build\work")
+    )
+    if (-not $NoClean) { $pyiArgs += "--clean" } else { Write-Host "    （-NoClean：增量打包）" }
+    & $python @pyiArgs
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller 打包失败" }
 
     $green = Join-Path $root "dist\Truffle"

@@ -49,3 +49,15 @@ def test_zero_strength_is_noop():
     image = _skin_image()
     out = registry.execute("whiten", image, ctx, {"strength": 0.0})
     assert np.array_equal(out, image)
+
+
+def test_every_registered_tool_runs_with_defaults():
+    """参数栏里的每个工具（= AI 可调用 API）都能用默认参数跑通，不崩溃、形状不变。"""
+    registry = build_default_registry()
+    ctx = ToolContext(Analyzer())
+    image = _skin_image(160)
+    for tool in registry.all():
+        params = {p.name: p.default for p in tool.parameters}
+        out = registry.execute(tool.name, image, ctx, params)
+        assert out.shape == image.shape, tool.name
+        assert out.dtype == np.uint8, tool.name

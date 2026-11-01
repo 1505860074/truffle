@@ -40,13 +40,30 @@ class ToolParameter:
 
 
 class ToolContext:
-    """一次对话轮次内的共享上下文，缓存图像分析结果避免重复检测。"""
+    """一次调用内的共享上下文。
 
-    def __init__(self, analyzer: Analyzer) -> None:
+    正常情况按图像身份缓存分析结果；`pin` 用于「预览管线」：把底图上算好的
+    人脸/姿态/前景结果钉住，让后续工具直接复用，避免每个中间图都重新检测。
+    """
+
+    def __init__(self, analyzer: Analyzer, pin: dict | None = None) -> None:
         self.analyzer = analyzer
+        self._pin = pin  # {"analysis": Analysis, "pose": ..., "foreground": ...}
 
     def analyze(self, image: np.ndarray) -> Analysis:
+        if self._pin is not None:
+            return self._pin["analysis"]
         return self.analyzer.analyze(image)
+
+    def pose(self, image: np.ndarray) -> np.ndarray | None:
+        if self._pin is not None:
+            return self._pin.get("pose")
+        return self.analyzer.pose(image)
+
+    def foreground(self, image: np.ndarray) -> np.ndarray | None:
+        if self._pin is not None:
+            return self._pin.get("foreground")
+        return self.analyzer.foreground(image)
 
 
 class BaseTool(ABC):
@@ -94,8 +111,10 @@ class BaseTool(ABC):
                     value = min(p.maximum, value)
             elif p.type == "boolean":
                 value = bool(value)
-            elif p.enum and value not in p.enum:
-                value = p.default
+            elif p.enum:
+                if value not in p.enum:
+                    matched = next((e for e in p.enum if str(e) == str(value)), None)
+                    value = matched if matched is not None else p.default
             out[p.name] = value
         return out
 

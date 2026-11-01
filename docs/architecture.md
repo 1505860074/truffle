@@ -76,10 +76,45 @@ flowchart TB
 
 ### 3.5 Core 层（`src/truffle/core/`）
 
-- 职责：图像文档模型（当前图、原图、撤销/重做栈）、文件读写、管线执行。
-- 输入：图像 ndarray、工具操作。
+- 职责：图像文档模型（图层栈、当前合成图、原图、撤销/重做历史）、选区原语、自由变换、文件读写、管线执行。
+- 输入：图像 ndarray、工具操作、图层/选区/变换指令。
 - 输出：更新后的状态 + 通知信号。
 - 依赖：无（最底层，不依赖 UI/Agent）。
+- 关键组件：
+  - `layers.py`：`Layer` / `LayerStack`，BGRA 图层、混合模式、不透明度、图层蒙版、合成。
+  - `layer_doc.py`：`LayerDocument`，多图层 + 快照式历史，兼容原 `ImageDocument` 常用接口。
+  - `selection.py`：矩形/椭圆/套索/多边形/魔棒掩膜、羽化、布尔运算、轮廓。
+  - `transform.py`：四点透视矩阵、图层/选区像素变换、翻转/旋转。
+  - `image_doc.py`：保留给旧版单图可重放管线与单元测试。
+
+### 3.6 画布交互层（`src/truffle/ui/image_view.py`）
+
+- 职责：缩放/平移、选区绘制、裁剪、液化、自由变换的鼠标与键盘交互。
+- 缩放：滚轮平移、Shift+滚轮横向平移、Alt+滚轮以光标为中心缩放；Ctrl+0 适合窗口、Ctrl+1 实际像素。
+- 选区：矩形 / 椭圆 / 套索 / 多边形 / 魔棒；Shift 加选、Alt 减选、Shift+Alt 交叉；工具栏可设羽化、容差与布尔模式。
+- 自由变换：源矩形到目标四边形的透视变换；角点缩放（Shift 等比、Alt 中心、Ctrl 透视/斜切）、边中点缩放、框外旋转、框内移动；Enter 应用、Esc 取消。
+- 渲染约束：缩放后的显示图按尺寸缓存；大图超高倍缩放改为绘制时缩放，避免生成超大 QImage。
+
+### 3.7 图层面板（`src/truffle/ui/layers_panel.py`）
+
+- 职责：图层列表（显隐/缩略图）、不透明度、混合模式、新建/复制/删除/合并/拼合、蒙版、上下移动。
+- 约束：图层像素数组在快照间共享引用；只有被修改的图层会生成新数组，避免历史内存爆炸。
+
+### 3.8 快捷键（对齐 Photoshop）
+
+| 操作 | 快捷键 |
+| --- | --- |
+| 移动 / 变换 | V / Ctrl+T |
+| 矩形 / 椭圆选区 | M / Shift+M |
+| 套索 / 多边形套索 | L / Shift+L |
+| 魔棒 | W |
+| 裁剪 / 液化 / 抓手 / 缩放 | C / B / Space / Z |
+| 全选 / 取消选择 / 反选 | Ctrl+A / Ctrl+D / Ctrl+Shift+I |
+| 撤销 / 重做 | Ctrl+Z / Ctrl+Shift+Z（兼容 Ctrl+Y） |
+| 新建 / 复制 / 向下合并 / 合并可见 | Ctrl+Shift+N / Ctrl+J / Ctrl+E / Ctrl+Shift+E |
+| 放大 / 缩小 / 适合窗口 / 100% | Ctrl++ / Ctrl+- / Ctrl+0 / Ctrl+1 |
+| 平移 | Space+拖动 / 中键拖动 / 滚轮 |
+
 
 ## 4. 核心数据流
 
@@ -116,6 +151,10 @@ sequenceDiagram
 | D4 | 大模型走 **OpenAI 兼容协议** | 一套适配层通吃 OpenAI 及国内兼容模型 |
 | D5 | CV 分析结果按图像指纹缓存 | 一张图多次修饰不重复检测人脸 |
 | D6 | 显示层与算法层进程/线程分离 | 避免 GUI 卡死 |
+| D7 | 多图层采用 **快照式历史**，未改动图层数组共享引用 | 兼顾 Photoshop 式历史跳转与内存占用 |
+| D8 | 图层像素统一 **BGRA**，合成输出 BGR | 支持自由变换、蒙版与透明区域 |
+| D9 | 选区用 **全分辨率 uint8 掩膜**，轮廓缓存后绘制 | 兼容羽化/布尔运算/魔棒，绘制不走算法 |
+| D10 | PS 快捷键优先，单键工具仅在画布聚焦时生效 | 既对齐 PS，又不干扰对话栏输入 |
 
 （后续新增决策追加到 `docs/adr/`。）
 
@@ -127,11 +166,19 @@ truffle/
 ├─ src/truffle/
 │  ├─ main.py            程序入口
 │  ├─ config.py          配置与 API Key 管理
-│  ├─ core/              图像文档、管线
+│  ├─ core/              图层文档、选区、变换、管线
+│  │  ├─ layers.py       图层与合成
+│  │  ├─ layer_doc.py    多图层文档 + 快照历史
+│  │  ├─ selection.py    选区掩膜原语
+│  │  ├─ transform.py    自由变换原语
+│  │  └─ image_doc.py    旧版单图文档（兼容）
 │  ├─ cv/                人脸/皮肤/形变原语
 │  ├─ tools/             修饰工具 + 注册表
 │  ├─ agent/             LLM 客户端 + 编排器
 │  └─ ui/                PySide6 界面
+│     ├─ image_view.py   缩放/平移/选区/变换画布
+│     ├─ canvas_tools.py 画布工具栏
+│     └─ layers_panel.py 图层面板
 ├─ tests/                单元测试
 └─ requirements.txt
 ```
