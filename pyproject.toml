@@ -18,6 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 build = ["pyinstaller>=6.6"]
 onnx = ["onnxruntime>=1.17"]
+ml = ["scikit-learn>=1.3"]
 
 [project.scripts]
 truffle = "truffle.main:main"

@@ -80,10 +80,11 @@ class RecipeSample:
 
 
 class RecipeMemory:
-    def __init__(self, style_id: str) -> None:
+    def __init__(self, style_id: str, path: str | Path | None = None) -> None:
         self.style_id = style_id
         self.samples: list[RecipeSample] = []
-        self.path = recipe_dir() / f"{style_id}.json"
+        self.path = Path(path) if path else recipe_dir() / f"{style_id}.json"
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self.load()
 
     def load(self) -> None:
@@ -121,6 +122,126 @@ class RecipeMemory:
             key=lambda sample: math.dist(target, sample.features) if len(sample.features) == len(target) else float("inf"),
         )
         return list(best.jobs)
+
+    def train(self, prefer_gbdt: bool = True) -> "RecipeModel":
+        return train_recipe_model(self, prefer_gbdt=prefer_gbdt)
+
+
+@dataclass
+class RecipeModel:
+    """指标 → 参数配方模型。有 sklearn 时用 GBDT，否则用闭式岭回归。"""
+
+    style_id: str
+    kind: str = "ridge"
+    features: list[str] = field(default_factory=lambda: list(_FEATURE_KEYS))
+    targets: dict[str, dict[str, Any]] = field(default_factory=dict)
+    _gbdt: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def predict(self, state: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+        x = np.asarray(feature_vector(state), dtype=np.float64)
+        grouped: dict[str, dict[str, Any]] = {}
+        for key, meta in self.targets.items():
+            tool = str(meta["tool"])
+            param = str(meta["param"])
+            if key in self._gbdt:
+                try:
+                    value = float(self._gbdt[key].predict(x.reshape(1, -1))[0])
+                except Exception:
+                    value = float(np.dot(x, meta.get("coef", [])) + float(meta.get("intercept", 0.0)))
+            else:
+                coef = np.asarray(meta.get("coef", []), dtype=np.float64)
+                value = float(np.dot(x, coef) + float(meta.get("intercept", 0.0)))
+            if abs(value) < 0.02:
+                continue
+            grouped.setdefault(tool, {})[param] = round(value, 4)
+        return [(tool, params) for tool, params in grouped.items() if params]
+
+    def save(self, path: str | Path | None = None) -> Path:
+        target = Path(path) if path else recipe_dir() / f"{self.style_id}_model.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # GBDT 对象不序列化；系数始终保存，保证可回退
+        target.write_text(
+            json.dumps(
+                {
+                    "style_id": self.style_id,
+                    "kind": self.kind,
+                    "features": self.features,
+                    "targets": self.targets,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return target
+
+    @classmethod
+    def load(cls, path: str | Path) -> "RecipeModel":
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls(
+            style_id=str(data.get("style_id", "")),
+            kind=str(data.get("kind", "ridge")),
+            features=list(data.get("features", _FEATURE_KEYS)),
+            targets=dict(data.get("targets", {})),
+        )
+
+
+def _ridge_fit(x: np.ndarray, y: np.ndarray, alpha: float = 1.0) -> tuple[np.ndarray, float]:
+    n, d = x.shape
+    if n == 0:
+        return np.zeros(d, dtype=np.float64), 0.0
+    x_design = np.hstack([x, np.ones((n, 1), dtype=np.float64)])
+    reg = np.eye(d + 1, dtype=np.float64) * alpha
+    reg[-1, -1] = 0.0
+    try:
+        coef = np.linalg.solve(x_design.T @ x_design + reg, x_design.T @ y)
+    except np.linalg.LinAlgError:
+        coef = np.linalg.lstsq(x_design, y, rcond=None)[0]
+    return coef[:-1], float(coef[-1])
+
+
+def train_recipe_model(memory: RecipeMemory, prefer_gbdt: bool = True) -> RecipeModel:
+    if not memory.samples:
+        return RecipeModel(style_id=memory.style_id)
+    x = np.asarray([sample.features for sample in memory.samples], dtype=np.float64)
+    keys: dict[str, tuple[str, str]] = {}
+    for sample in memory.samples:
+        for tool, params in sample.jobs:
+            for param, value in params.items():
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    keys[f"{tool}.{param}"] = (tool, param)
+    model = RecipeModel(style_id=memory.style_id)
+    gbdt = None
+    if prefer_gbdt:
+        try:
+            from sklearn.ensemble import GradientBoostingRegressor  # type: ignore
+
+            gbdt = GradientBoostingRegressor(random_state=0, n_estimators=60, max_depth=2)
+            model.kind = "gbdt"
+        except Exception:
+            gbdt = None
+    for key, (tool, param) in keys.items():
+        y = np.asarray(
+            [
+                float(dict(sample.jobs).get(tool, {}).get(param, 0.0))
+                for sample in memory.samples
+            ],
+            dtype=np.float64,
+        )
+        coef, intercept = _ridge_fit(x, y)
+        model.targets[key] = {
+            "tool": tool,
+            "param": param,
+            "coef": [round(float(v), 6) for v in coef],
+            "intercept": round(intercept, 6),
+        }
+        if gbdt is not None:
+            try:
+                fitted = gbdt.fit(x, y)
+                model._gbdt[key] = fitted
+            except Exception:
+                model.kind = "ridge"
+    return model
 
 
 def learn_targets(

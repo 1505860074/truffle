@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from truffle.agent.recipe import RecipeMemory, RecipeModel
 from truffle.agent.series import contact_sheet, export_batch, profile_with_consistency
 from truffle.agent.solver import ParamSolver
 from truffle.agent.style import PROFILES, resolve_style, style_distance
@@ -58,6 +59,33 @@ def test_solver_produces_jobs() -> None:
     assert result.before
     assert result.after
     assert 0.0 <= result.naturalness <= 1.0
+
+
+def test_recipe_model_ridge_roundtrip(tmp_path) -> None:
+    memory = RecipeMemory("test", tmp_path / "memory.json")
+    for i in range(6):
+        state = {
+            "tone": {"ev": 0.1 * i, "contrast": 0.2 + 0.02 * i},
+            "color": {"sat": 0.2 + 0.03 * i, "skin_L": 0.6, "skin_a": 10.0},
+            "quality": {"sharp": 0.4, "noise": 0.1},
+            "style_vec": {"warmth": 0.5, "airy": 0.5, "contrast": 0.3, "glow": 0.4,
+                          "cool_shadow": 0.2, "film": 0.1},
+        }
+        memory.add(state, [("color_adjust", {"brightness": 0.05 * i, "saturation": 0.02 * i})])
+    model = memory.train(prefer_gbdt=False)
+    assert model.kind == "ridge"
+    state = {
+        "tone": {"ev": 0.5, "contrast": 0.3},
+        "color": {"sat": 0.4, "skin_L": 0.6, "skin_a": 10.0},
+        "quality": {"sharp": 0.4, "noise": 0.1},
+        "style_vec": {"warmth": 0.5, "airy": 0.5, "contrast": 0.3, "glow": 0.4,
+                      "cool_shadow": 0.2, "film": 0.1},
+    }
+    jobs = model.predict(state)
+    assert jobs
+    path = model.save(tmp_path / "model.json")
+    loaded = RecipeModel.load(path)
+    assert loaded.predict(state)
 
 
 def test_consistency_tightens_targets() -> None:
