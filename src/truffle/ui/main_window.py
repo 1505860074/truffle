@@ -77,6 +77,7 @@ from .param_panel import ParamPanel
 from .project_style_worker import ProjectStyleWorker
 from .series_dialog import SeriesDialog
 from .settings_dialog import SettingsDialog
+from .style_apply_worker import StyleApplyWorker
 from .style_panel import StylePanel
 from .step_edit_dialog import StepEditDialog
 from .tool_labels import tool_label
@@ -121,6 +122,7 @@ class MainWindow(QMainWindow):
         self._agent_style = "natural"
         self._agent_orchestrator = None
         self._style_worker = None
+        self._style_single_worker = None
         if project is not None:
             self.setWindowTitle(f"Truffle · {project.name} · v{__version__}")
         else:
@@ -467,7 +469,11 @@ class MainWindow(QMainWindow):
             return
         if self._style_worker is not None and self._style_worker.isRunning():
             return
+        self.style_panel.set_busy(True)
+        self.style_panel.set_progress(0, 0, tr("正在保存当前状态…"))
         if not self._save_project():
+            self.style_panel.set_busy(False)
+            self.style_panel.clear_progress()
             return
         if self._autosave is not None:
             self._autosave.stop()
@@ -487,18 +493,19 @@ class MainWindow(QMainWindow):
             history_steps=history_steps,
             history_mode=self.settings.agent_history_mode,
         )
-        worker.progress.connect(
-            lambda done, total: self.style_panel.set_status(f"{done}/{total}")
-        )
+        worker.progress.connect(self._on_style_all_progress)
         worker.finishedOk.connect(self._on_style_all_done)
         worker.failed.connect(self._on_style_all_failed)
         worker.finished.connect(self._on_style_all_finished)
         self._style_worker = worker
         worker.start()
 
+    def _on_style_all_progress(self, done: int, total: int) -> None:
+        self.style_panel.set_progress(done, total, tr("正在处理项目图片…"))
+
     def _on_style_all_done(self, count: int) -> None:
         self._dirty = False
-        self.style_panel.set_status(tr("已完成 ") + str(count) + tr(" 张图片"))
+        self.style_panel.clear_progress(tr("已完成 ") + str(count) + tr(" 张图片"))
         self.chat.add_system(tr("一键修图完成：") + str(count) + tr(" 张图片。"))
         active = self.project.active_image_id if self.project is not None else None
         if active:
@@ -510,7 +517,7 @@ class MainWindow(QMainWindow):
                 pass
 
     def _on_style_all_failed(self, message: str) -> None:
-        self.style_panel.set_status(tr("失败：") + message)
+        self.style_panel.clear_progress(tr("失败：") + message)
         self.chat.add_system(tr("一键修图失败：") + message)
 
     def _on_style_all_finished(self) -> None:
@@ -523,56 +530,79 @@ class MainWindow(QMainWindow):
         if not self.doc.is_loaded:
             self.chat.add_system(tr("请先打开一张图片。"))
             return
+        if self._style_single_worker is not None and self._style_single_worker.isRunning():
+            return
         profile = resolve_style(style_id)
         try:
             self.style_panel.select_style(profile.id)
         except Exception:
             pass
+        self.style_panel.set_busy(True)
+        self.style_panel.set_progress(0, 0, tr("正在分析画面…"))
+        image = self.doc.tool_source().copy()
+        doc_ref = self.doc
+        worker = StyleApplyWorker(image, self.registry, self.analyzer, profile.id)
+        worker.status.connect(self.style_panel.set_status)
+        worker.finishedOk.connect(
+            lambda styled, jobs, critique: self._on_single_style_done(
+                doc_ref, profile, styled, jobs, critique
+            )
+        )
+        worker.failed.connect(self._on_single_style_failed)
+        worker.finished.connect(self._on_single_style_finished)
+        self._style_single_worker = worker
+        worker.start()
+
+    def _on_single_style_done(self, doc_ref, profile, styled, jobs, critique) -> None:
+        if doc_ref is not self.doc:
+            return
+        if jobs:
+            self.doc.push_op(
+                "style",
+                "一键修图 · " + profile.name,
+                {"style": profile.id, "jobs": jobs, "critique": critique},
+                image=styled,
+                origin="ai",
+            )
+            self._after_doc_change()
+        self._agent_style = profile.id
+        self._agent_orchestrator = None
+        self._write_agent_state(profile.id, jobs)
+        if jobs:
+            self.chat.add_system(
+                tr("已应用风格：") + profile.name + f"（{len(jobs)} 个自动调整）"
+            )
+        else:
+            self.chat.add_system(tr("当前图片已接近该风格，无需调整。"))
+
+    def _on_single_style_failed(self, message: str) -> None:
+        self.style_panel.set_status(tr("失败：") + message)
+        self.chat.add_system(tr("应用风格失败：") + message)
+
+    def _on_single_style_finished(self) -> None:
+        self.style_panel.set_busy(False)
+        self.style_panel.clear_progress()
+        self._style_single_worker = None
+
+    def _write_agent_state(self, style_id: str, jobs) -> None:
+        if self.project is None:
+            return
         try:
-            state = measure(self.doc.current, self.analyzer)
-            solver = ParamSolver(self.registry, self.analyzer)
-            result = solver.solve(self.doc.current, profile, state)
-            executed = 0
-            for name, params in result.jobs:
-                source = self.doc.tool_source()
-                new_image = self.registry.execute(name, source, ToolContext(self.analyzer), params)
-                safe = self.registry.get(name).coerce_params(params)
-                self.doc.commit_tool(name, safe, new_image, origin="ai")
-                executed += 1
-            if (
-                executed > 1
-                and self.settings.agent_history_mode == "request"
-                and hasattr(self.doc, "collapse_recent")
-            ):
-                self.doc.collapse_recent(executed, "AI · " + profile.name, origin="ai")
-            self._agent_style = profile.id
-            self._agent_orchestrator = None
-            if self.project is not None:
-                try:
-                    (self.project.workdir / "agent.json").write_text(
-                        json.dumps(
-                            {
-                                "schema": 1,
-                                "style": profile.id,
-                                "state": measure(self.doc.current, self.analyzer, body=False),
-                                "jobs": result.jobs,
-                            },
-                            ensure_ascii=False,
-                            indent=2,
-                        ),
-                        encoding="utf-8",
-                    )
-                except Exception:
-                    pass
-            if executed:
-                self._after_doc_change()
-                self.chat.add_system(
-                    tr("已应用风格：") + profile.name + f"（{executed} 步）"
-                )
-            else:
-                self.chat.add_system(tr("当前图片已接近该风格，无需调整。"))
-        except Exception as exc:  # noqa: BLE001
-            self.chat.add_system(tr("应用风格失败：") + str(exc))
+            (self.project.workdir / "agent.json").write_text(
+                json.dumps(
+                    {
+                        "schema": 1,
+                        "style": style_id,
+                        "state": measure(self.doc.current, self.analyzer, body=False),
+                        "jobs": jobs,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
 
     def _project_settings(self) -> None:
         if self.project is None:
@@ -1828,6 +1858,9 @@ class MainWindow(QMainWindow):
 
     # ---------- 关闭行为 ----------
     def closeEvent(self, event) -> None:  # noqa: N802
+        for worker in (self._style_single_worker, self._style_worker):
+            if worker is not None and worker.isRunning():
+                worker.wait(5000)
         if self.project is not None:
             self._save_layout()
             if not self._save_project():

@@ -151,6 +151,7 @@ def profile_with_consistency(
         weights=dict(profile.weights),
         skin=dict(profile.skin),
         geometry=dict(profile.geometry),
+        makeup=dict(profile.makeup),
         finish=dict(profile.finish),
         style_vec=dict(profile.style_vec),
     )

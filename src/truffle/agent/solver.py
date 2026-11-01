@@ -254,6 +254,27 @@ class ParamSolver:
         if allow("teeth_whiten") and teeth is not None and teeth > 0.25:
             jobs.append(("teeth_whiten", {"strength": round(_clip((teeth - 0.2) / 0.5, 0.2, 0.6), 3)}))
 
+        lip_strength = _center(profile, "makeup.lip_strength")
+        if allow("lipstick") and state.get("faces") and lip_strength is not None and lip_strength > 0.05:
+            jobs.append(("lipstick", {
+                "hue": round(float(_center(profile, "makeup.lip_hue", 0.98)), 3),
+                "strength": round(_clip(lip_strength, 0.05, 0.55), 3),
+            }))
+
+        hair_strength = _center(profile, "makeup.hair_strength")
+        if allow("hair_color") and state.get("faces") and hair_strength is not None and hair_strength > 0.03:
+            jobs.append(("hair_color", {
+                "hue": round(float(_center(profile, "makeup.hair_hue", 0.05)), 3),
+                "strength": round(_clip(hair_strength, 0.03, 0.25), 3),
+            }))
+
+        eye_strength = _center(profile, "makeup.eye_strength")
+        if allow("eye_brighten") and state.get("faces") and eye_strength is not None and eye_strength > 0.04:
+            jobs.append(("eye_brighten", {
+                "strength": round(_clip(eye_strength, 0.04, 0.45), 3),
+                "sclera": round(_clip(float(_center(profile, "makeup.sclera", 0.2)), 0.0, 0.5), 3),
+            }))
+
         glow_target = _center(profile, "style_vec.glow")
         if allow("face_light") and state.get("faces") and glow_target is not None:
             current_glow = float(state.get("style_vec", {}).get("glow", glow_target))

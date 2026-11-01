@@ -19,6 +19,7 @@ class StyleProfile:
     weights: dict[str, float] = field(default_factory=dict)
     skin: dict[str, tuple[float, float]] = field(default_factory=dict)
     geometry: dict[str, tuple[float, float]] = field(default_factory=dict)
+    makeup: dict[str, tuple[float, float]] = field(default_factory=dict)
     finish: dict[str, tuple[float, float]] = field(default_factory=dict)
     style_vec: dict[str, tuple[float, float]] = field(default_factory=dict)
 
@@ -31,6 +32,7 @@ class StyleProfile:
             "weights": dict(self.weights),
             "skin": {k: list(v) for k, v in self.skin.items()},
             "geometry": {k: list(v) for k, v in self.geometry.items()},
+            "makeup": {k: list(v) for k, v in self.makeup.items()},
             "finish": {k: list(v) for k, v in self.finish.items()},
             "style_vec": {k: list(v) for k, v in self.style_vec.items()},
         }
@@ -39,6 +41,7 @@ class StyleProfile:
         out = dict(self.targets)
         out.update({f"skin.{k}": v for k, v in self.skin.items()})
         out.update({f"geometry.{k}": v for k, v in self.geometry.items()})
+        out.update({f"makeup.{k}": v for k, v in self.makeup.items()})
         out.update({f"finish.{k}": v for k, v in self.finish.items()})
         out.update({f"style_vec.{k}": v for k, v in self.style_vec.items()})
         return out
@@ -183,8 +186,8 @@ _GEOMETRY_OVERRIDES = {
         "waist_hip": (0.65, 0.98), "leg_body": (0.38, 0.68),
     },
     "tangshui": {
-        "face_wh": (1.15, 1.36), "jaw": (0.66, 0.84), "eye_w": (0.46, 0.62),
-        "waist_hip": (0.70, 0.88), "leg_body": (0.50, 0.64),
+        "face_wh": (1.15, 1.30), "jaw": (0.64, 0.80), "eye_w": (0.48, 0.64),
+        "waist_hip": (0.70, 0.86), "leg_body": (0.50, 0.64),
     },
     "cold_white": {
         "face_wh": (1.15, 1.42), "jaw": (0.68, 0.90), "eye_w": (0.40, 0.58),
@@ -199,8 +202,8 @@ _GEOMETRY_OVERRIDES = {
         "face_wh": (1.18, 1.42), "jaw": (0.70, 0.90), "eye_w": (0.40, 0.55),
     },
     "high_sat_low_contrast": {
-        "face_wh": (1.13, 1.34), "jaw": (0.64, 0.82), "eye_w": (0.48, 0.64),
-        "waist_hip": (0.68, 0.86), "leg_body": (0.50, 0.66),
+        "face_wh": (1.13, 1.28), "jaw": (0.62, 0.78), "eye_w": (0.50, 0.66),
+        "waist_hip": (0.68, 0.84), "leg_body": (0.50, 0.66),
     },
 }
 for _sid, _geometry in _GEOMETRY_OVERRIDES.items():
@@ -220,6 +223,48 @@ for _sid, _finish in _FINISH_OVERRIDES.items():
             PROFILES[_sid],
             finish={**PROFILES[_sid].finish, **_finish},
         )
+
+# 妆容目标：强度是主目标；色相只在需要统一唇色/发色时使用。
+_MAKEUP_OVERRIDES = {
+    "natural": {
+        "lip_strength": (0.0, 0.12), "lip_hue": (0.96, 1.0),
+        "hair_strength": (0.0, 0.05), "eye_strength": (0.02, 0.12),
+        "sclera": (0.0, 0.15),
+    },
+    "tangshui": {
+        "lip_strength": (0.22, 0.42), "lip_hue": (0.96, 1.0),
+        "hair_strength": (0.04, 0.12), "eye_strength": (0.18, 0.35),
+        "sclera": (0.10, 0.25),
+    },
+    "cold_white": {
+        "lip_strength": (0.12, 0.30), "lip_hue": (0.95, 0.99),
+        "hair_strength": (0.02, 0.08), "eye_strength": (0.08, 0.22),
+        "sclera": (0.08, 0.22),
+    },
+    "warm_film": {
+        "lip_strength": (0.16, 0.32), "lip_hue": (0.94, 0.99),
+        "hair_strength": (0.04, 0.12), "eye_strength": (0.08, 0.20),
+        "sclera": (0.05, 0.18),
+    },
+    "night": {
+        "lip_strength": (0.12, 0.28), "lip_hue": (0.95, 1.0),
+        "hair_strength": (0.02, 0.08), "eye_strength": (0.12, 0.28),
+        "sclera": (0.05, 0.18),
+    },
+    "id_photo": {
+        "lip_strength": (0.04, 0.16), "lip_hue": (0.97, 1.0),
+        "hair_strength": (0.0, 0.04), "eye_strength": (0.02, 0.12),
+        "sclera": (0.02, 0.12),
+    },
+    "high_sat_low_contrast": {
+        "lip_strength": (0.30, 0.50), "lip_hue": (0.95, 1.0),
+        "hair_strength": (0.08, 0.18), "eye_strength": (0.22, 0.40),
+        "sclera": (0.12, 0.28),
+    },
+}
+for _sid, _makeup in _MAKEUP_OVERRIDES.items():
+    if _sid in PROFILES:
+        PROFILES[_sid] = replace(PROFILES[_sid], makeup=_makeup)
 
 ALIASES = {
     "自然": "natural",

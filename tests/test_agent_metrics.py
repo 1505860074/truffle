@@ -50,6 +50,26 @@ def test_new_tools_registered_and_run() -> None:
     assert out.mean() > image.mean()
 
 
+def test_solver_face_body_makeup_jobs() -> None:
+    registry = build_default_registry()
+    solver = ParamSolver(registry, Analyzer(), preview_max=128)
+    state = {
+        "tone": {"ev": 0.0, "contrast": 0.3, "wb_k": 6500, "clip_hi": 0.0, "clip_lo": 0.0, "shadow": 0.2},
+        "color": {"sat": 0.3, "skin_L": 0.65, "skin_a": 10.0},
+        "quality": {"sharp": 0.4, "noise": 0.1},
+        "style_vec": {"glow": 0.3},
+        "faces": [{
+            "ratio": {"face_wh": 1.60, "jaw": 1.0, "eye_w": 0.30},
+            "skin": {"texture": 0.7, "blemish": 3, "under_eye": 0.6, "teeth_yellow": 0.4},
+        }],
+        "body": {"waist_hip": 1.05, "leg_body": 0.30},
+    }
+    jobs = solver._initial_jobs(state, PROFILES["tangshui"], None)
+    names = {name for name, _params in jobs}
+    assert {"slim_face", "enlarge_eyes", "body_slim", "leg_lengthen"} <= names
+    assert {"lipstick", "hair_color", "eye_brighten"} <= names
+
+
 def test_solver_produces_jobs() -> None:
     registry = build_default_registry()
     analyzer = Analyzer()

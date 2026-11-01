@@ -6,6 +6,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGridLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QSlider,
     QVBoxLayout,
@@ -64,6 +65,11 @@ class StylePanel(QWidget):
         consistency_lay.addWidget(QLabel(tr("成套一致性")))
         consistency_lay.addWidget(self.consistency, 1)
 
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.setTextVisible(False)
+        self.progress.hide()
+
         self.status = QLabel(tr("就绪"))
         self.status.setWordWrap(True)
         self.status.setStyleSheet("color:#8b8b8b;")
@@ -78,6 +84,7 @@ class StylePanel(QWidget):
         layout.addWidget(self.all_btn)
         layout.addWidget(self.auto_btn)
         layout.addWidget(consistency_row)
+        layout.addWidget(self.progress)
         layout.addWidget(self.status)
         layout.addStretch(1)
         self._select(self._style_id)
@@ -98,6 +105,23 @@ class StylePanel(QWidget):
 
     def set_status(self, text: str) -> None:
         self.status.setText(text)
+
+    def set_progress(self, value: int, total: int, text: str = "") -> None:
+        self.progress.show()
+        if total <= 0:
+            self.progress.setRange(0, 0)
+        else:
+            self.progress.setRange(0, total)
+            self.progress.setValue(value)
+        if text:
+            self.status.setText(text)
+
+    def clear_progress(self, text: str = "") -> None:
+        self.progress.hide()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        if text:
+            self.status.setText(text)
 
     def set_busy(self, busy: bool) -> None:
         for button in self._buttons.values():

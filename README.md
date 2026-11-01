@@ -95,6 +95,20 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 .\.venv\Scripts\python.exe scripts\selftest.py "C:\path\your.jpg"
 ```
 
+## 测试图片抓取
+
+用于本地风格评估，不进入仓库、不上传：
+
+```powershell
+# Wikimedia Commons（无需 key，注意许可证）
+.\.venv\Scripts\python.exe scripts\fetch_test_images.py --source wikimedia --query "portrait photography" --count 100 --out test_images
+
+# Unsplash / Pexels（需要各自的 API Key）
+.\.venv\Scripts\python.exe scripts\fetch_test_images.py --source unsplash --query "beauty portrait" --count 50 --api-key YOUR_KEY --out test_images
+```
+
+请遵守来源站点的条款、速率限制和图片许可证；只把图片用于本地测试。
+
 ## 风格离线评估
 
 用一组本地图片对一键风格做可重复评估，不改代码、不调用大模型：
