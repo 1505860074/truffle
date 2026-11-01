@@ -43,7 +43,7 @@ from ..agent.llm_client import LLMClient
 from ..agent.orchestrator import Orchestrator
 from ..agent.solver import ParamSolver
 from ..agent.style import PROFILES, infer_style, resolve_style
-from ..config import AppSettings
+from ..config import AppSettings, config_dir
 from ..core.account import Account, AccountError
 from ..core.exif import inject_exif_app1, read_exif_app1
 from ..core import session
@@ -1432,7 +1432,7 @@ class MainWindow(QMainWindow):
             f"model={self.settings.llm.model} timeout={self.settings.llm.timeout}",
             f"api_key_set={bool(self.settings.llm.api_key)}",
         ]
-        log = Path(os.environ.get("APPDATA") or Path.home()) / "Truffle" / "error.log"
+        log = config_dir() / "error.log"
         if log.exists():
             lines.append("")
             lines.append("===== error.log =====")

@@ -73,6 +73,10 @@ def default_project_dir(settings: Any = None) -> Path:
     custom = str(getattr(settings, "project_dir", "") or "").strip()
     if custom:
         path = Path(os.path.expandvars(os.path.expanduser(custom)))
+    elif os.environ.get("TRUFFLE_PROJECTS"):
+        path = Path(os.environ["TRUFFLE_PROJECTS"])
+    elif os.environ.get("TRUFFLE_HOME"):
+        path = Path(os.environ["TRUFFLE_HOME"]) / "projects"
     else:
         path = Path.home() / "Documents" / "Truffle Projects"
     path.mkdir(parents=True, exist_ok=True)

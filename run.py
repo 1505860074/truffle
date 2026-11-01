@@ -20,8 +20,12 @@ except Exception:  # noqa: BLE001
 
 
 def _appdata_file(name: str) -> Path:
-    base = os.environ.get("APPDATA") or str(Path.home())
-    path = Path(base) / "Truffle" / name
+    override = os.environ.get("TRUFFLE_HOME")
+    if override:
+        path = Path(override) / name
+    else:
+        base = os.environ.get("APPDATA") or str(Path.home())
+        path = Path(base) / "Truffle" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 

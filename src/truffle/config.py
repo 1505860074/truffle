@@ -15,8 +15,13 @@ from . import APP_NAME
 
 
 def config_dir() -> Path:
-    base = os.environ.get("APPDATA") or str(Path.home())
-    d = Path(base) / APP_NAME
+    # 开发模式可用 TRUFFLE_HOME 把所有本地数据放进项目目录
+    override = os.environ.get("TRUFFLE_HOME")
+    if override:
+        d = Path(override)
+    else:
+        base = os.environ.get("APPDATA") or str(Path.home())
+        d = Path(base) / APP_NAME
     d.mkdir(parents=True, exist_ok=True)
     return d
 

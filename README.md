@@ -36,6 +36,12 @@ scripts\run.bat -Headless
 
 也可以直接双击 `scripts\run.bat`。
 
+开发模式的数据固定放在项目内，不依赖临时目录：
+- `.truffle_dev\`：配置、日志、工作区；
+- `projects\`：默认项目目录；
+- `test_images\`：抓取/评估用测试图。
+以上目录均已加入 `.gitignore`。
+
 手动方式（自己建环境、装依赖、启动）：
 
 ```powershell

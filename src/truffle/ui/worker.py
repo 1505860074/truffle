@@ -42,7 +42,8 @@ def friendly_error(exc: BaseException) -> str:
 
 def _log_exception(exc: BaseException) -> None:
     try:
-        base = Path(os.environ.get("APPDATA") or Path.home()) / "Truffle"
+        override = os.environ.get("TRUFFLE_HOME")
+        base = Path(override) if override else Path(os.environ.get("APPDATA") or Path.home()) / "Truffle"
         base.mkdir(parents=True, exist_ok=True)
         path = base / "error.log"
         with path.open("a", encoding="utf-8") as handle:

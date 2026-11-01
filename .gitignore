@@ -33,6 +33,11 @@ models/
 Thumbs.db
 desktop.ini
 
+# 开发本地数据（项目/配置/测试图，均不入库）
+.truffle_dev/
+projects/
+test_images/
+
 # 测试与缓存
 .pytest_cache/
 .mypy_cache/

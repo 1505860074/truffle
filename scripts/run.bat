@@ -14,7 +14,9 @@ rem in the same shell can never hide the window again.
 for %%I in ("%~dp0..") do set "ROOT=%%~fI"
 pushd "%ROOT%" >nul
 set "PY=%ROOT%\.venv\Scripts\python.exe"
-set "LOG=%APPDATA%\Truffle\error.log"
+set "TRUFFLE_HOME=%ROOT%\.truffle_dev"
+set "TRUFFLE_PROJECTS=%ROOT%\projects"
+set "LOG=%TRUFFLE_HOME%\error.log"
 
 if not exist "%PY%" (
     echo [Truffle] venv not found: %PY%

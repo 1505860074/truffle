@@ -6,6 +6,8 @@ title Truffle
 
 set "ROOT=%~dp0"
 set "PY=%ROOT%.venv\Scripts\python.exe"
+set "TRUFFLE_HOME=%ROOT%.truffle_dev"
+set "TRUFFLE_PROJECTS=%ROOT%projects"
 set "MIRROR=https://pypi.tuna.tsinghua.edu.cn/simple"
 
 if not exist "%PY%" (
