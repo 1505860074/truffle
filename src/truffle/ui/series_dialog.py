@@ -61,6 +61,11 @@ class SeriesDialog(QDialog):
         self.columns.setValue(3)
         self.columns.setPrefix(tr("每行 "))
 
+        self.consistency = QSpinBox()
+        self.consistency.setRange(0, 100)
+        self.consistency.setValue(80)
+        self.consistency.setSuffix(" %")
+
         self.center_text = QLineEdit()
         self.center_text.setPlaceholderText(tr("拼图中心文字（可选）"))
         self.avatar = QLineEdit()
@@ -96,6 +101,7 @@ class SeriesDialog(QDialog):
         form = QFormLayout()
         form.addRow(tr("风格"), self.style)
         form.addRow(tr("拼图布局"), self.columns)
+        form.addRow(tr("风格一致性"), self.consistency)
         form.addRow(tr("中心文字"), self.center_text)
         form.addRow(tr("中心头像"), avatar_row)
         form.addRow(tr("导出目录"), out_row)
@@ -167,6 +173,7 @@ class SeriesDialog(QDialog):
             self.registry,
             self.analyzer,
             str(self.style.currentData()),
+            consistency=self.consistency.value() / 100.0,
             columns=self.columns.value(),
             out_dir=self.out_dir.text().strip() if export else "",
             ext=str(self.fmt.currentData()),

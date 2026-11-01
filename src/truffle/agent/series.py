@@ -63,6 +63,51 @@ def plan_series(
     return SeriesPlan(style_id=profile.id, consistency=consistency, baseline=baseline, images=items)
 
 
+def profile_with_consistency(
+    profile: StyleProfile,
+    baseline: dict[str, float],
+    consistency: float,
+) -> StyleProfile:
+    """把项目基准混入风格目标：一致性越高，越向项目基准收紧。"""
+    consistency = max(0.0, min(1.0, float(consistency)))
+    if consistency <= 0:
+        return profile
+    targets = dict(profile.all_targets())
+    tolerance = {
+        "color.skin_L": 0.02,
+        "tone.contrast": 0.02,
+        "color.sat": 0.02,
+        "tone.wb_k": 120.0,
+    }
+    for key, base in baseline.items():
+        path = {
+            "skin_L": "color.skin_L",
+            "contrast": "tone.contrast",
+            "sat": "color.sat",
+            "wb_k": "tone.wb_k",
+        }.get(key)
+        if path is None or path not in targets:
+            continue
+        lo, hi = targets[path]
+        style_center = (lo + hi) / 2.0
+        style_half = max(1e-6, (hi - lo) / 2.0)
+        tol = tolerance.get(path, style_half * 0.2)
+        center = consistency * float(base) + (1.0 - consistency) * style_center
+        half = consistency * tol + (1.0 - consistency) * style_half
+        targets[path] = (round(center - half, 4), round(center + half, 4))
+    return StyleProfile(
+        id=profile.id,
+        name=profile.name,
+        description=profile.description,
+        targets=targets,
+        weights=dict(profile.weights),
+        skin=dict(profile.skin),
+        geometry=dict(profile.geometry),
+        finish=dict(profile.finish),
+        style_vec=dict(profile.style_vec),
+    )
+
+
 def solve_series(
     images: list[np.ndarray],
     registry,
@@ -74,12 +119,12 @@ def solve_series(
 ) -> list[SolveResult]:
     """批量逐图求解。并发留给调用方/线程池，这里保持可测试的串行实现。"""
     solver = ParamSolver(registry, analyzer)
-    allowed = None
-    # 一致性越高，越限制“强风格”工具；目前通过求解器目标统一实现
+    plan = plan_series(images, analyzer, profile, consistency)
+    adjusted = profile_with_consistency(profile, plan.baseline, consistency)
     results: list[SolveResult] = []
     for image in images:
         state = measure(image, analyzer)
-        results.append(solver.solve(image, profile, state, allowed))
+        results.append(solver.solve(image, adjusted, state))
     return results
 
 

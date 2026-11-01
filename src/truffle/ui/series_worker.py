@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from PySide6.QtCore import QThread, Signal
 
-from ..agent.series import contact_sheet, export_batch
+from ..agent.series import contact_sheet, export_batch, plan_series, profile_with_consistency
 from ..agent.solver import ParamSolver
 from ..agent.style import resolve_style
 from ..cv.analyzer import Analyzer
@@ -29,6 +29,7 @@ class SeriesWorker(QThread):
         analyzer: Analyzer,
         style_id: str,
         *,
+        consistency: float = 0.8,
         columns: int = 3,
         out_dir: str = "",
         ext: str = ".jpg",
@@ -42,6 +43,7 @@ class SeriesWorker(QThread):
         self.registry = registry
         self.analyzer = analyzer
         self.style_id = style_id
+        self.consistency = consistency
         self.columns = columns
         self.out_dir = out_dir
         self.ext = ext
@@ -57,15 +59,25 @@ class SeriesWorker(QThread):
                 self.registry, self.analyzer,
                 preview_max=512, max_iterations=1, max_evaluations=6,
             )
-            styled: list[np.ndarray] = []
-            total = len(self.paths)
-            for index, path in enumerate(self.paths, 1):
+            loaded: list[np.ndarray] = []
+            for path in self.paths:
                 data = np.fromfile(path, dtype=np.uint8)
                 image = cv2.imdecode(data, cv2.IMREAD_COLOR)
-                if image is None:
-                    continue
+                if image is not None:
+                    loaded.append(image)
+            if not loaded:
+                self.failed.emit("没有可处理的图片")
+                return
+            try:
+                plan = plan_series(loaded, self.analyzer, profile, self.consistency)
+                adjusted = profile_with_consistency(profile, plan.baseline, self.consistency)
+            except Exception:
+                adjusted = profile
+            styled: list[np.ndarray] = []
+            total = len(loaded)
+            for index, image in enumerate(loaded, 1):
                 try:
-                    result = solver.solve(image, profile)
+                    result = solver.solve(image, adjusted)
                     out = render_pipeline(self.registry, self.analyzer, image, result.jobs) if result.jobs else image
                 except Exception:
                     out = image

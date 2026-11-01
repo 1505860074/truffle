@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from truffle.agent.series import contact_sheet, export_batch
+from truffle.agent.series import contact_sheet, export_batch, profile_with_consistency
 from truffle.agent.solver import ParamSolver
 from truffle.agent.style import PROFILES, resolve_style, style_distance
 from truffle.cv.analyzer import Analyzer
@@ -58,6 +58,17 @@ def test_solver_produces_jobs() -> None:
     assert result.before
     assert result.after
     assert 0.0 <= result.naturalness <= 1.0
+
+
+def test_consistency_tightens_targets() -> None:
+    profile = PROFILES["natural"]
+    original = profile.all_targets()["color.skin_L"]
+    adjusted = profile_with_consistency(
+        profile, {"skin_L": 0.70, "contrast": 0.4, "sat": 0.3, "wb_k": 6000.0}, 1.0
+    )
+    tightened = adjusted.all_targets()["color.skin_L"]
+    assert tightened[1] - tightened[0] < original[1] - original[0]
+    assert tightened[0] <= 0.70 <= tightened[1]
 
 
 def test_collapse_history_group() -> None:
