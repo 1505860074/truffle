@@ -282,6 +282,21 @@ class ParamSolver:
             if strength > 0.03:
                 jobs.append(("enlarge_eyes", {"strength": round(strength, 3)}))
 
+        body = state.get("body") or {}
+        waist = body.get("waist_hip")
+        waist_max = _upper(profile, "geometry.waist_hip")
+        if allow("body_slim") and waist is not None and waist_max is not None:
+            strength = _clip((float(waist) - waist_max) * 2.5, 0.0, 0.5)
+            if strength > 0.03:
+                jobs.append(("body_slim", {"strength": round(strength, 3)}))
+
+        leg = body.get("leg_body")
+        leg_min = _lower(profile, "geometry.leg_body")
+        if allow("leg_lengthen") and leg is not None and leg_min is not None:
+            strength = _clip((leg_min - float(leg)) * 2.0, 0.0, 0.45)
+            if strength > 0.03:
+                jobs.append(("leg_lengthen", {"strength": round(strength, 3)}))
+
         grain = _center(profile, "finish.grain")
         if allow("film") and grain is not None and grain > 0.02:
             jobs.append(("film", {"strength": round(_clip(grain * 1.8, 0.05, 0.5), 3)}))

@@ -414,7 +414,25 @@ def measure(
         body_item = _body_metrics(pose)
         if body_item is not None:
             result["body"] = body_item
+    result["geometry"] = _geometry_summary(result)
     return result
+
+
+def _geometry_summary(state: dict[str, Any]) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for key in ("face_wh", "jaw", "eye_w", "eye_ar"):
+        values = [
+            float(face["ratio"][key])
+            for face in state.get("faces", [])
+            if face.get("ratio", {}).get(key) is not None
+        ]
+        if values:
+            out[key] = round(float(np.median(values)), 4)
+    body = state.get("body") or {}
+    for key in ("waist_hip", "leg_body", "shoulder_hip"):
+        if body.get(key) is not None:
+            out[key] = round(float(body[key]), 4)
+    return out
 
 
 def _scene_hint(image: np.ndarray) -> str:

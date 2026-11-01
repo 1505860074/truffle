@@ -35,6 +35,25 @@ def _median(values: list[float]) -> float | None:
     return float(np.median(values)) if values else None
 
 
+def _median_face(states: list[dict[str, Any]], key: str) -> float | None:
+    values = [
+        float(face.get("ratio", {}).get(key))
+        for state in states
+        for face in state.get("faces", [])
+        if face.get("ratio", {}).get(key) is not None
+    ]
+    return _median(values)
+
+
+def _median_body(states: list[dict[str, Any]], key: str) -> float | None:
+    values = [
+        float(state["body"][key])
+        for state in states
+        if state.get("body") and state["body"].get(key) is not None
+    ]
+    return _median(values)
+
+
 def plan_series(
     images: list[np.ndarray],
     analyzer: Analyzer,
@@ -43,21 +62,40 @@ def plan_series(
 ) -> SeriesPlan:
     """先测全项目基准，再给每张图记录与基准的偏差。"""
     consistency = max(0.0, min(1.0, float(consistency)))
-    states = [measure(image, analyzer, body=False) for image in images]
-    baseline = {
-        "skin_L": _median([float(s.get("color", {}).get("skin_L", 0.0)) for s in states]) or 0.0,
-        "contrast": _median([float(s.get("tone", {}).get("contrast", 0.0)) for s in states]) or 0.0,
-        "sat": _median([float(s.get("color", {}).get("sat", 0.0)) for s in states]) or 0.0,
-        "wb_k": _median([float(s.get("tone", {}).get("wb_k", 6500.0)) for s in states]) or 6500.0,
-    }
+    states = [measure(image, analyzer) for image in images]
+    baseline: dict[str, float] = {}
+    for key, value in (
+        ("skin_L", _median([float(s.get("color", {}).get("skin_L", 0.0)) for s in states])),
+        ("contrast", _median([float(s.get("tone", {}).get("contrast", 0.0)) for s in states])),
+        ("sat", _median([float(s.get("color", {}).get("sat", 0.0)) for s in states])),
+        ("wb_k", _median([float(s.get("tone", {}).get("wb_k", 6500.0)) for s in states])),
+        ("face_wh", _median_face(states, "face_wh")),
+        ("jaw", _median_face(states, "jaw")),
+        ("eye_w", _median_face(states, "eye_w")),
+        ("waist_hip", _median_body(states, "waist_hip")),
+        ("leg_body", _median_body(states, "leg_body")),
+    ):
+        if value is not None:
+            baseline[key] = float(value)
     items = []
     for index, state in enumerate(states):
         delta = {
-            "skin_L": round(float(state.get("color", {}).get("skin_L", 0.0)) - baseline["skin_L"], 4),
-            "contrast": round(float(state.get("tone", {}).get("contrast", 0.0)) - baseline["contrast"], 4),
-            "sat": round(float(state.get("color", {}).get("sat", 0.0)) - baseline["sat"], 4),
-            "wb_k": round(float(state.get("tone", {}).get("wb_k", 6500.0)) - baseline["wb_k"], 1),
+            "skin_L": round(float(state.get("color", {}).get("skin_L", 0.0)) - baseline.get("skin_L", 0.0), 4),
+            "contrast": round(float(state.get("tone", {}).get("contrast", 0.0)) - baseline.get("contrast", 0.0), 4),
+            "sat": round(float(state.get("color", {}).get("sat", 0.0)) - baseline.get("sat", 0.0), 4),
+            "wb_k": round(float(state.get("tone", {}).get("wb_k", 6500.0)) - baseline.get("wb_k", 6500.0), 1),
         }
+        for key in ("face_wh", "jaw", "eye_w"):
+            value = _median([
+                float(face.get("ratio", {}).get(key))
+                for face in state.get("faces", [])
+                if face.get("ratio", {}).get(key) is not None
+            ])
+            if value is not None and key in baseline:
+                delta[key] = round(value - baseline[key], 4)
+        for key in ("waist_hip", "leg_body"):
+            if state.get("body") and state["body"].get(key) is not None and key in baseline:
+                delta[key] = round(float(state["body"][key]) - baseline[key], 4)
         distance, _ = style_distance(state, profile)
         items.append({"index": index, "delta": delta, "style_distance": round(distance, 4)})
     return SeriesPlan(style_id=profile.id, consistency=consistency, baseline=baseline, images=items)
@@ -78,6 +116,11 @@ def profile_with_consistency(
         "tone.contrast": 0.02,
         "color.sat": 0.02,
         "tone.wb_k": 120.0,
+        "geometry.face_wh": 0.015,
+        "geometry.jaw": 0.012,
+        "geometry.eye_w": 0.012,
+        "geometry.waist_hip": 0.012,
+        "geometry.leg_body": 0.012,
     }
     for key, base in baseline.items():
         path = {
@@ -85,6 +128,11 @@ def profile_with_consistency(
             "contrast": "tone.contrast",
             "sat": "color.sat",
             "wb_k": "tone.wb_k",
+            "face_wh": "geometry.face_wh",
+            "jaw": "geometry.jaw",
+            "eye_w": "geometry.eye_w",
+            "waist_hip": "geometry.waist_hip",
+            "leg_body": "geometry.leg_body",
         }.get(key)
         if path is None or path not in targets:
             continue

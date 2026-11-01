@@ -6,7 +6,7 @@ LLM 选择风格，求解器把当前指标拉进目标区间。
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterable
 
 
@@ -175,6 +175,40 @@ PROFILES: dict[str, StyleProfile] = {
         style_vec={"airy": (0.50, 0.80), "glow": (0.45, 0.80)},
     ),
 }
+
+# 人脸/形体目标统一放在 geometry 下；比例由指标模块按瞳距/身高归一化。
+_GEOMETRY_OVERRIDES = {
+    "natural": {
+        "face_wh": (1.15, 1.50), "jaw": (0.65, 0.95), "eye_w": (0.38, 0.62),
+        "waist_hip": (0.65, 0.98), "leg_body": (0.38, 0.68),
+    },
+    "tangshui": {
+        "face_wh": (1.15, 1.36), "jaw": (0.66, 0.84), "eye_w": (0.46, 0.62),
+        "waist_hip": (0.70, 0.88), "leg_body": (0.50, 0.64),
+    },
+    "cold_white": {
+        "face_wh": (1.15, 1.42), "jaw": (0.68, 0.90), "eye_w": (0.40, 0.58),
+    },
+    "warm_film": {
+        "face_wh": (1.15, 1.45), "jaw": (0.68, 0.92), "eye_w": (0.40, 0.60),
+    },
+    "night": {
+        "face_wh": (1.15, 1.50), "jaw": (0.65, 0.95), "eye_w": (0.38, 0.62),
+    },
+    "id_photo": {
+        "face_wh": (1.18, 1.42), "jaw": (0.70, 0.90), "eye_w": (0.40, 0.55),
+    },
+    "high_sat_low_contrast": {
+        "face_wh": (1.13, 1.34), "jaw": (0.64, 0.82), "eye_w": (0.48, 0.64),
+        "waist_hip": (0.68, 0.86), "leg_body": (0.50, 0.66),
+    },
+}
+for _sid, _geometry in _GEOMETRY_OVERRIDES.items():
+    if _sid in PROFILES:
+        PROFILES[_sid] = replace(
+            PROFILES[_sid],
+            geometry={**PROFILES[_sid].geometry, **_geometry},
+        )
 
 ALIASES = {
     "自然": "natural",
