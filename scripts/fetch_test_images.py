@@ -225,6 +225,86 @@ def _picsum(count: int, out_dir: Path, max_bytes: int, delay: float) -> list[Pat
     return saved
 
 
+PRESETS = {
+    "xiaohongshu": [
+        "小红书 女生 街拍 半身 氛围感",
+        "小红书 女生 全身 穿搭 街拍",
+        "女生 咖啡店 自拍 氛围感",
+        "女生 下午茶 自拍 奶油色调",
+        "朋友圈 女生 拍照 背景 人像",
+        "女生 旅行 拍照 半身 胶片感",
+    ],
+    "moments": [
+        "女生 朋友圈 人像 背景 氛围感",
+        "女生 户外 自拍 半身 自然光",
+        "女生 咖啡厅 他拍 穿搭",
+        "女生 旅行 全身 拍照 胶片",
+    ],
+}
+
+
+def _so(
+    queries: list[str],
+    count: int,
+    out_dir: Path,
+    max_bytes: int,
+    delay: float,
+    min_side: int,
+    min_ratio: float,
+    max_ratio: float,
+) -> list[Path]:
+    """360 图片搜索：能拿到小红书/朋友圈风格的半身/全身人像。"""
+    saved: list[Path] = []
+    for query in queries:
+        offset = 0
+        while len(saved) < count:
+            params = {
+                "q": query,
+                "src": "srp",
+                "sn": str(offset),
+                "pn": "30",
+            }
+            url = "https://image.so.com/j?" + urllib.parse.urlencode(params)
+            try:
+                raw = _request(url, headers={"Referer": "https://image.so.com/"}).decode("utf-8", "replace")
+                payload = json.loads(raw)
+            except Exception:
+                break
+            items = payload.get("list") or []
+            if not items:
+                break
+            for item in items:
+                try:
+                    width = int(item.get("width") or 0)
+                    height = int(item.get("height") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if min(width, height) < min_side:
+                    continue
+                if width <= 0 or height <= 0:
+                    continue
+                ratio = height / width
+                if not (min_ratio <= ratio <= max_ratio):
+                    continue
+                image_url = str(item.get("img") or item.get("https") or "")
+                if image_url.startswith("//"):
+                    image_url = "https:" + image_url
+                if image_url.startswith("http://"):
+                    image_url = "https://" + image_url[7:]
+                if not image_url:
+                    continue
+                path = _download(image_url, out_dir, str(item.get("id") or "so"), max_bytes)
+                if path is not None:
+                    saved.append(path)
+                if len(saved) >= count:
+                    break
+                time.sleep(delay)
+            offset += len(items)
+            if len(saved) >= count or payload.get("end"):
+                break
+    return saved
+
+
 def _urls_file(path: Path, out_dir: Path, max_bytes: int, delay: float) -> list[Path]:
     saved: list[Path] = []
     for line in path.read_text(encoding="utf-8").splitlines():
